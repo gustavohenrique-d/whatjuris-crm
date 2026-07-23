@@ -10,7 +10,7 @@ const ATUALIZADO_EM = '23 de julho de 2026';
 
 // >>> SUBSTITUA estes dois antes de enviar à Meta <<<
 const NOME_ESCRITORIO = 'Bezerra & Nabarrete Sociedade de Advogados';
-const EMAIL_CONTATO = '[email-de-contato@dominio.com.br]';
+const EMAIL_CONTATO = 'contatobusiness2000@gmail.com';
 
 const Privacidade = () => {
   return (
