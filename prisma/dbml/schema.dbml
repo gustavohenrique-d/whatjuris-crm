@@ -1,0 +1,342 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table organization {
+  id String [pk]
+  name String [not null]
+  legalName String
+  document String
+  oabNumber String
+  logoUrl String
+  timezone String [not null, default: 'America/Sao_Paulo']
+  botDisplayName String
+  businessHours Json [not null, default: '{}']
+  legalAreas String[] [not null]
+  settings Json [not null, default: '{}']
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table users {
+  id String [pk]
+  name String [not null]
+  email String [unique, not null]
+  passwordHash String [not null]
+  status UserStatus [not null, default: 'INVITED']
+  roleId String [not null]
+  role roles [not null]
+  oabNumber String
+  oabState String
+  legalAreas String[] [not null]
+  phone String
+  notifyWhatsapp String
+  avatarUrl String
+  emailVerifiedAt DateTime
+  deletedAt DateTime
+  tokenVersion Int [not null, default: 0]
+  failedLoginAttempts Int [not null, default: 0]
+  lockedUntil DateTime
+  lastLoginAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  contacts contacts [not null]
+  deals deals [not null]
+  activities activities [not null]
+  authTokens auth_tokens [not null]
+}
+
+Table auth_tokens {
+  id String [pk]
+  type AuthTokenType [not null]
+  email String [not null]
+  tokenHash String [unique, not null]
+  userId String
+  user users
+  expiresAt DateTime [not null]
+  usedAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+}
+
+Table roles {
+  id String [pk]
+  key String [unique, not null]
+  name String [not null]
+  description String
+  isSystem Boolean [not null, default: false]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  users users [not null]
+  permissions role_permissions [not null]
+}
+
+Table permissions {
+  id String [pk]
+  key String [unique, not null]
+  name String [not null]
+  resource String [not null]
+  action String [not null]
+  scope String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  roles role_permissions [not null]
+}
+
+Table role_permissions {
+  roleId String [not null]
+  permissionId String [not null]
+  role roles [not null]
+  permission permissions [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+
+  indexes {
+    (roleId, permissionId) [pk]
+  }
+}
+
+Table contacts {
+  id String [pk]
+  type ContactType [not null, default: 'LEAD']
+  name String [not null]
+  email String
+  phone String
+  whatsapp String
+  document String
+  source String
+  notes String
+  consentAt DateTime
+  customData Json [not null, default: '{}']
+  ownerId String
+  owner users
+  deletedAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  deals deals [not null]
+  activities activities [not null]
+}
+
+Table pipelines {
+  id String [pk]
+  key String [unique, not null]
+  name String [unique, not null]
+  position Int [not null, default: 0]
+  isDefault Boolean [not null, default: false]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  stages pipeline_stages [not null]
+  deals deals [not null]
+}
+
+Table pipeline_stages {
+  id String [pk]
+  pipelineId String [not null]
+  pipeline pipelines [not null]
+  key String [not null]
+  name String [not null]
+  type StageType [not null, default: 'OPEN']
+  position Int [not null]
+  color String
+  probability Int
+  stalledAfterHours Int
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  deals deals [not null]
+
+  indexes {
+    (pipelineId, key) [unique]
+    (id, pipelineId) [unique]
+  }
+}
+
+Table deals {
+  id String [pk]
+  title String [not null]
+  contactId String [not null]
+  contact contacts [not null]
+  pipelineId String [not null]
+  pipeline pipelines [not null]
+  stageId String [not null]
+  stage pipeline_stages [not null]
+  ownerId String
+  owner users
+  status DealStatus [not null, default: 'OPEN']
+  closedAt DateTime
+  lostReason String
+  value Decimal
+  currency String [not null, default: 'BRL']
+  probability Int
+  priority Int [not null, default: 0]
+  legalArea String
+  expectedCloseAt DateTime
+  enteredStageAt DateTime [default: `now()`, not null]
+  customData Json [not null, default: '{}']
+  position Int [not null, default: 0]
+  deletedAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  stageHistory deal_stage_history [not null]
+  activities activities [not null]
+}
+
+Table deal_stage_history {
+  id String [pk]
+  dealId String [not null]
+  deal deals [not null]
+  fromStageId String
+  toStageId String [not null]
+  movedBy String
+  movedByAi Boolean [not null, default: false]
+  durationSeconds Int
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+}
+
+Table activities {
+  id String [pk]
+  dealId String
+  deal deals
+  contactId String
+  contact contacts
+  type ActivityType [not null]
+  actorType ActorType [not null, default: 'USER']
+  userId String
+  user users
+  actorLabel String
+  title String
+  content String
+  metadata Json [not null, default: '{}']
+  occurredAt DateTime [default: `now()`, not null]
+  dueAt DateTime
+  completedAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table custom_fields {
+  id String [pk]
+  entity CustomFieldEntity [not null]
+  key String [not null]
+  label String [not null]
+  type CustomFieldType [not null]
+  options String[] [not null]
+  required Boolean [not null, default: false]
+  position Int [not null, default: 0]
+  active Boolean [not null, default: true]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+
+  indexes {
+    (entity, key) [unique]
+  }
+}
+
+Table audit_logs {
+  id String [pk]
+  actorId String
+  actorType ActorType [not null, default: 'USER']
+  action String [not null]
+  resource String
+  resourceId String
+  before Json
+  after Json
+  metadata Json [not null, default: '{}']
+  ip String
+  userAgent String
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+Enum AuthTokenType {
+  INVITE
+  PASSWORD_RESET
+}
+
+Enum ContactType {
+  LEAD
+  CLIENT
+}
+
+Enum StageType {
+  OPEN
+  WON
+  LOST
+}
+
+Enum DealStatus {
+  OPEN
+  WON
+  LOST
+}
+
+Enum ActivityType {
+  NOTE
+  CALL
+  EMAIL
+  WHATSAPP
+  MEETING
+  TASK
+  SYSTEM
+  MESSAGE_IN
+  MESSAGE_OUT
+  FILE_UPLOAD
+  STAGE_CHANGE
+  ASSIGNMENT
+  AI_ACTION
+  HEARING
+}
+
+Enum ActorType {
+  USER
+  AI_AGENT
+  SYSTEM
+  CONTACT
+}
+
+Enum CustomFieldEntity {
+  CONTACT
+  DEAL
+}
+
+Enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  MULTISELECT
+  BOOLEAN
+}
+
+Ref: users.roleId > roles.id
+
+Ref: auth_tokens.userId > users.id [delete: Cascade]
+
+Ref: role_permissions.roleId > roles.id [delete: Cascade]
+
+Ref: role_permissions.permissionId > permissions.id [delete: Cascade]
+
+Ref: contacts.ownerId > users.id [delete: Set Null]
+
+Ref: pipeline_stages.pipelineId > pipelines.id [delete: Cascade]
+
+Ref: deals.contactId > contacts.id
+
+Ref: deals.pipelineId > pipelines.id
+
+Ref: deals.stageId > pipeline_stages.id
+
+Ref: deals.ownerId > users.id [delete: Set Null]
+
+Ref: deal_stage_history.dealId > deals.id [delete: Cascade]
+
+Ref: activities.dealId > deals.id [delete: Cascade]
+
+Ref: activities.contactId > contacts.id [delete: Cascade]
+
+Ref: activities.userId > users.id [delete: Set Null]

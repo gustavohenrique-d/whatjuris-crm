@@ -1,0 +1,20 @@
+/* styles/whatjuris-tokens.css — copiado do :root do whatjuris.html */
+/* Fonte Inter via @import (não no _document.js, que quebra a hidratação) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg:              #0F1117;
+  --sidebar:         #151820;
+  --card:            #1C2130;
+  --card-alt:        #20263A;
+  --border:          #2A3040;
+  --accent:          #4F8EF7;
+  --accent2:         #7C5CFC;
+  --text:            #F0F2F8;
+  --text-secondary:  #8892A4;
+  --green:           #2DD4A0;
+  --amber:           #F5A623;
+  --red:             #F04E4E;
+  --gray-low:        #4A5164;
+  --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+}
