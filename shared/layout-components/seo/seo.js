@@ -1,14 +1,14 @@
 import Head from 'next/head';
 import favicon from '../../../public/assets/images/brand-logos/favicon.ico';
 const Seo = ({ title }) => {
-    let i = `Combo X3rec4 - ${title}`;
+    let i = title ? `WhatJuris — ${title}` : 'WhatJuris';
     return (
         <Head>
             <title>{i}</title>
             <link href={favicon.src} rel="icon"></link>
             <meta
                 name="description"
-                content="Combo X3rec4 - Nextjs Admin &amp; Dashboard Template"
+                content="WhatJuris — CRM jurídico com triagem de leads por IA no WhatsApp"
             />
             <meta
                 name="author"
