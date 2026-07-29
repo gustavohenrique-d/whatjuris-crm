@@ -1,0 +1,226 @@
+{
+  "name": "Módulo 04 - Agente de Triagem Jurídica",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "modulo-04-triagem", "responseMode": "lastNode", "options": {} },
+      "id": "n-entrada", "name": "Entrada - Módulo 3 (Webhook Interno)",
+      "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [-1400, 400], "webhookId": "modulo-04-triagem"
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+          "conditions": [
+            { "leftValue": "={{ ($json.body?.allow_ai ?? $json.allow_ai) }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } },
+            { "leftValue": "={{ ($json.body?.human_takeover ?? $json.human_takeover) }}", "rightValue": "={{ false }}", "operator": { "type": "boolean", "operation": "equals" } },
+            { "leftValue": "={{ ($json.body?.processing_status ?? $json.processing_status ?? 'ok') }}", "rightValue": "ok", "operator": { "type": "string", "operation": "equals" } },
+            { "leftValue": "={{ ($json.body?.message ?? $json.message) }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }
+          ] }, "options": {}
+      },
+      "id": "n-if-autorizada", "name": "IF - IA Está Autorizada?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [-1180, 400]
+    },
+    {
+      "parameters": { "mode": "manual", "assignments": { "assignments": [
+        { "id": "e1", "name": "agent_status", "value": "ignored", "type": "string" },
+        { "id": "e2", "name": "allow_ai", "value": "={{ false }}", "type": "boolean" }
+      ] }, "options": {} },
+      "id": "n-encerrar-sem-ia", "name": "Set - Encerrar Sem IA",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [-960, 600]
+    },
+    {
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "s1", "name": "instance_name", "value": "={{ ($json.body?.instance_name ?? $json.instance_name) }}", "type": "string" },
+        { "id": "s2", "name": "chat_id", "value": "={{ ($json.body?.chat_id ?? $json.chat_id) }}", "type": "string" },
+        { "id": "s3", "name": "message", "value": "={{ ($json.body?.message ?? $json.message) }}", "type": "string" },
+        { "id": "s4", "name": "source_message_id", "value": "={{ ($json.body?.message_id ?? $json.message_id) }}", "type": "string" },
+        { "id": "s5", "name": "buffered_message_ids", "value": "={{ ($json.body?.buffered_message_ids ?? $json.buffered_message_ids ?? []) }}", "type": "array" },
+        { "id": "s6", "name": "control_version", "value": "={{ ($json.body?.control_version ?? $json.control_version ?? 0) }}", "type": "number" },
+        { "id": "s7", "name": "session_key", "value": "={{ 'chat:v1:' + String($json.body?.instance_name ?? $json.instance_name).toLowerCase().replace(/[^a-z0-9_-]/g,'_') + ':' + String($json.body?.chat_id ?? $json.chat_id).replace(/[^0-9]/g,'') }}", "type": "string" }
+      ] }, "options": {} },
+      "id": "n-sessao", "name": "Set - Preparar Sessão",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [-960, 380]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://host.docker.internal:3100/api/internal/deals/by-chat?instance_name={{ $json.instance_name }}&chat_id={{ $json.chat_id }}",
+        "options": { "timeout": 10000, "response": { "response": { "neverError": true } } }
+      },
+      "id": "n-carregar-deal", "name": "HTTP - Carregar Deal do CRM",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [-740, 380]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://host.docker.internal:3100/api/conversations/{{ $('Set - Preparar Sessão').item.json.instance_name }}/{{ $('Set - Preparar Sessão').item.json.chat_id }}/control",
+        "options": { "timeout": 10000 }
+      },
+      "id": "n-revalidar-1", "name": "HTTP - Revalidar Human Takeover",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [-520, 380]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+          "conditions": [ { "leftValue": "={{ $json.human_takeover }}", "rightValue": "={{ false }}", "operator": { "type": "boolean", "operation": "equals" } } ] }, "options": {}
+      },
+      "id": "n-if-liberado-1", "name": "IF - Continua Liberado?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [-300, 380]
+    },
+    {
+      "parameters": { "mode": "manual", "assignments": { "assignments": [
+        { "id": "t1", "name": "agent_status", "value": "blocked", "type": "string" },
+        { "id": "t2", "name": "allow_send", "value": "={{ false }}", "type": "boolean" }
+      ] }, "options": {} },
+      "id": "n-encerrar-takeover", "name": "Set - Encerrar por Takeover",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [-80, 560]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Set - Preparar Sessão').item.json.message }}",
+        "options": {
+          "systemMessage": "SUBSTITUA por prompts/legal-triage-system-prompt.txt (com LAW_FIRM_NAME preenchido). Não versionado inline para evitar duplicação.",
+          "maxIterations": 2
+        }
+      },
+      "id": "n-agent", "name": "AI Agent - Triagem Jurídica",
+      "type": "@n8n/n8n-nodes-langchain.agent", "typeVersion": 1.7, "position": [-80, 380]
+    },
+    {
+      "parameters": {
+        "model": "={{ $env.OPENAI_TRIAGE_MODEL || 'gpt-4o-mini' }}",
+        "options": { "temperature": 0.2, "maxTokens": 700 }
+      },
+      "id": "n-model", "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi", "typeVersion": 1.2, "position": [-200, 620],
+      "credentials": { "openAiApi": { "id": "REPLACE_IN_N8N", "name": "OpenAI - Triagem Jurídica" } }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Set - Preparar Sessão').item.json.session_key }}",
+        "tableName": "triage_chat_history",
+        "contextWindowLength": 20
+      },
+      "id": "n-memory", "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat", "typeVersion": 1.3, "position": [40, 620],
+      "credentials": { "postgres": { "id": "REPLACE_IN_N8N", "name": "Supabase - AI Memory" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar e Recalcular Resultado (nao confia na LLM).\nconst raw = $json.output ?? $json.text ?? $json.response ?? '';\nlet result;\ntry {\n  const cleaned = String(raw).trim().replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/i,'').trim();\n  result = JSON.parse(cleaned);\n} catch {\n  return [{ json: { ...$('Set - Preparar Sessão').item.json, agent_status:'error', agent_error:'INVALID_JSON_OUTPUT', allow_send:false } }];\n}\nconst d = {};\nfor (const k of ['nome','area','resumo_caso','urgencia']) {\n  let v = result.dados_extraidos?.[k];\n  if (typeof v === 'string') { v = v.trim(); if (v === '') v = null; } else if (v === undefined) v = null;\n  d[k] = v;\n}\nconst isQualified = typeof d.nome==='string' && d.nome.trim().length>=3 && typeof d.area==='string' && d.area!=='Não identificado' && typeof d.resumo_caso==='string' && d.resumo_caso.trim().length>=10 && ['Baixa','Média','Alta'].includes(d.urgencia);\nconst fase = isQualified ? 'qualificado' : (result.fase_triagem==='desqualificado' ? 'desqualificado' : 'coletando_dados');\nif (!result.mensagem_para_cliente || typeof result.mensagem_para_cliente !== 'string') {\n  return [{ json: { ...$('Set - Preparar Sessão').item.json, agent_status:'error', agent_error:'MISSING_CLIENT_MESSAGE', allow_send:false } }];\n}\nreturn [{ json: { ...$('Set - Preparar Sessão').item.json, dados_extraidos:d, mensagem_para_cliente:result.mensagem_para_cliente, fase_triagem:fase, lead_qualificado:isQualified, agent_status:'success', allow_send:true, result_valid:true } }];"
+      },
+      "id": "n-code-validar", "name": "Code - Validar e Recalcular Resultado",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [200, 380]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+          "conditions": [ { "leftValue": "={{ $json.allow_send }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } } ] }, "options": {}
+      },
+      "id": "n-if-valido", "name": "IF - Resultado Válido?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [420, 380]
+    },
+    {
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "er1", "name": "allow_send", "value": "={{ false }}", "type": "boolean" }
+      ] }, "options": {} },
+      "id": "n-erro-saida", "name": "Set - Erro de Saída",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [640, 560]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3100/api/internal/deals/triage",
+        "sendBody": true, "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, source_message_id: $json.source_message_id, buffered_message_ids: $json.buffered_message_ids, expected_control_version: $json.control_version, fase_triagem: $json.fase_triagem, dados_extraidos: $json.dados_extraidos, lead_qualificado: $json.lead_qualificado } }}",
+        "options": { "timeout": 15000, "response": { "response": { "neverError": true } } }
+      },
+      "id": "n-atualizar", "name": "HTTP - Atualizar Triagem no CRM",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [640, 380]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "or",
+          "conditions": [
+            { "leftValue": "={{ $json.error }}", "rightValue": "HUMAN_TAKEOVER_ACTIVE", "operator": { "type": "string", "operation": "equals" } },
+            { "leftValue": "={{ $json.error }}", "rightValue": "STALE_CONTROL_VERSION", "operator": { "type": "string", "operation": "equals" } }
+          ] }, "options": {}
+      },
+      "id": "n-if-409", "name": "IF - CRM Retornou 409?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [860, 380]
+    },
+    {
+      "parameters": { "mode": "manual", "assignments": { "assignments": [
+        { "id": "dc1", "name": "agent_status", "value": "discarded_takeover", "type": "string" },
+        { "id": "dc2", "name": "allow_send", "value": "={{ false }}", "type": "boolean" }
+      ] }, "options": {} },
+      "id": "n-descartar-409", "name": "Set - Descartar por Takeover",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [1080, 220]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://host.docker.internal:3100/api/conversations/{{ $('Set - Preparar Sessão').item.json.instance_name }}/{{ $('Set - Preparar Sessão').item.json.chat_id }}/control",
+        "options": { "timeout": 10000 }
+      },
+      "id": "n-revalidar-2", "name": "HTTP - Revalidar Human Takeover (2)",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1080, 460]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+          "conditions": [ { "leftValue": "={{ $json.human_takeover }}", "rightValue": "={{ false }}", "operator": { "type": "boolean", "operation": "equals" } } ] }, "options": {}
+      },
+      "id": "n-if-liberado-2", "name": "IF - Resposta Ainda Autorizada?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [1300, 460]
+    },
+    {
+      "parameters": { "mode": "manual", "assignments": { "assignments": [
+        { "id": "dr1", "name": "agent_status", "value": "discarded_after_wait", "type": "string" },
+        { "id": "dr2", "name": "allow_send", "value": "={{ false }}", "type": "boolean" }
+      ] }, "options": {} },
+      "id": "n-descartar-resp", "name": "Set - Descartar Resposta",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [1520, 300]
+    },
+    {
+      "parameters": { "mode": "manual", "assignments": { "assignments": [
+        { "id": "o1", "name": "agent_status", "value": "success", "type": "string" },
+        { "id": "o2", "name": "allow_send", "value": "={{ true }}", "type": "boolean" },
+        { "id": "o3", "name": "instance_name", "value": "={{ $('Set - Preparar Sessão').item.json.instance_name }}", "type": "string" },
+        { "id": "o4", "name": "chat_id", "value": "={{ $('Set - Preparar Sessão').item.json.chat_id }}", "type": "string" },
+        { "id": "o5", "name": "message_id", "value": "={{ $('Set - Preparar Sessão').item.json.source_message_id }}", "type": "string" },
+        { "id": "o6", "name": "session_key", "value": "={{ $('Set - Preparar Sessão').item.json.session_key }}", "type": "string" },
+        { "id": "o7", "name": "response_id", "value": "={{ $('HTTP - Atualizar Triagem no CRM').item.json.response_id }}", "type": "string" },
+        { "id": "o8", "name": "mensagem_para_cliente", "value": "={{ $('Code - Validar e Recalcular Resultado').item.json.mensagem_para_cliente }}", "type": "string" },
+        { "id": "o9", "name": "fase_triagem", "value": "={{ $('Code - Validar e Recalcular Resultado').item.json.fase_triagem }}", "type": "string" },
+        { "id": "o10", "name": "lead_qualificado", "value": "={{ $('Code - Validar e Recalcular Resultado').item.json.lead_qualificado }}", "type": "boolean" },
+        { "id": "o11", "name": "expected_control_version", "value": "={{ $('Set - Preparar Sessão').item.json.control_version }}", "type": "number" }
+      ] }, "options": {} },
+      "id": "n-saida", "name": "Set - Saída para WhatsApp",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [1520, 540]
+    }
+  ],
+  "connections": {
+    "Entrada - Módulo 3 (Webhook Interno)": { "main": [ [ { "node": "IF - IA Está Autorizada?", "type": "main", "index": 0 } ] ] },
+    "IF - IA Está Autorizada?": { "main": [ [ { "node": "Set - Preparar Sessão", "type": "main", "index": 0 } ], [ { "node": "Set - Encerrar Sem IA", "type": "main", "index": 0 } ] ] },
+    "Set - Preparar Sessão": { "main": [ [ { "node": "HTTP - Carregar Deal do CRM", "type": "main", "index": 0 } ] ] },
+    "HTTP - Carregar Deal do CRM": { "main": [ [ { "node": "HTTP - Revalidar Human Takeover", "type": "main", "index": 0 } ] ] },
+    "HTTP - Revalidar Human Takeover": { "main": [ [ { "node": "IF - Continua Liberado?", "type": "main", "index": 0 } ] ] },
+    "IF - Continua Liberado?": { "main": [ [ { "node": "AI Agent - Triagem Jurídica", "type": "main", "index": 0 } ], [ { "node": "Set - Encerrar por Takeover", "type": "main", "index": 0 } ] ] },
+    "OpenAI Chat Model": { "ai_languageModel": [ [ { "node": "AI Agent - Triagem Jurídica", "type": "ai_languageModel", "index": 0 } ] ] },
+    "Postgres Chat Memory": { "ai_memory": [ [ { "node": "AI Agent - Triagem Jurídica", "type": "ai_memory", "index": 0 } ] ] },
+    "AI Agent - Triagem Jurídica": { "main": [ [ { "node": "Code - Validar e Recalcular Resultado", "type": "main", "index": 0 } ] ] },
+    "Code - Validar e Recalcular Resultado": { "main": [ [ { "node": "IF - Resultado Válido?", "type": "main", "index": 0 } ] ] },
+    "IF - Resultado Válido?": { "main": [ [ { "node": "HTTP - Atualizar Triagem no CRM", "type": "main", "index": 0 } ], [ { "node": "Set - Erro de Saída", "type": "main", "index": 0 } ] ] },
+    "HTTP - Atualizar Triagem no CRM": { "main": [ [ { "node": "IF - CRM Retornou 409?", "type": "main", "index": 0 } ] ] },
+    "IF - CRM Retornou 409?": { "main": [ [ { "node": "Set - Descartar por Takeover", "type": "main", "index": 0 } ], [ { "node": "HTTP - Revalidar Human Takeover (2)", "type": "main", "index": 0 } ] ] },
+    "HTTP - Revalidar Human Takeover (2)": { "main": [ [ { "node": "IF - Resposta Ainda Autorizada?", "type": "main", "index": 0 } ] ] },
+    "IF - Resposta Ainda Autorizada?": { "main": [ [ { "node": "Set - Saída para WhatsApp", "type": "main", "index": 0 } ], [ { "node": "Set - Descartar Resposta", "type": "main", "index": 0 } ] ] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": { "templateId": "whatjuris-modulo-04" },
+  "tags": [ { "name": "whatjuris" }, { "name": "modulo-04" } ]
+}

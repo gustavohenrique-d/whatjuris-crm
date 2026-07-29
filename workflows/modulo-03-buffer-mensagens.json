@@ -1,0 +1,262 @@
+{
+  "name": "Módulo 03 - Buffer e Consolidação de Mensagens",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "modulo-03-buffer-mensagens", "responseMode": "lastNode", "options": {} },
+      "id": "n-entrada", "name": "Entrada - Módulo 2 (Webhook Interno)",
+      "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [-1400, 400], "webhookId": "modulo-03-buffer-mensagens"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+          "conditions": [
+            { "leftValue": "={{ ($json.body?.from_me ?? $json.from_me) }}", "rightValue": "={{ false }}", "operator": { "type": "boolean", "operation": "equals" } },
+            { "leftValue": "={{ ($json.body?.human_takeover ?? $json.human_takeover) }}", "rightValue": "={{ false }}", "operator": { "type": "boolean", "operation": "equals" } },
+            { "leftValue": "={{ ($json.body?.allow_ai ?? $json.allow_ai) }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } },
+            { "leftValue": "={{ ($json.body?.flow_action ?? $json.flow_action) }}", "rightValue": "continue_to_buffer", "operator": { "type": "string", "operation": "equals" } },
+            { "leftValue": "={{ ($json.body?.message_id ?? $json.message_id) }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } },
+            { "leftValue": "={{ ($json.body?.message ?? $json.message) }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }
+          ]
+        }, "options": {}
+      },
+      "id": "n-if-precond", "name": "IF - Pode Entrar no Buffer?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [-1180, 400]
+    },
+    {
+      "parameters": { "mode": "manual", "assignments": { "assignments": [
+        { "id": "ig1", "name": "buffer_status", "value": "ignored", "type": "string" },
+        { "id": "ig2", "name": "buffer_reason", "value": "BUFFER_PRECONDITION_FAILED", "type": "string" }
+      ] }, "options": {} },
+      "id": "n-ignorar", "name": "Set - Ignorar",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [-960, 620]
+    },
+    {
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "p1", "name": "instance_name", "value": "={{ ($json.body?.instance_name ?? $json.instance_name).toLowerCase().replace(/[^a-z0-9_-]/g,'_') }}", "type": "string" },
+        { "id": "p2", "name": "chat_id", "value": "={{ ($json.body?.chat_id ?? $json.chat_id).toString().replace(/\\D/g,'') }}", "type": "string" },
+        { "id": "p3", "name": "message_id", "value": "={{ $json.body?.message_id ?? $json.message_id }}", "type": "string" },
+        { "id": "p4", "name": "message", "value": "={{ $json.body?.message ?? $json.message }}", "type": "string" },
+        { "id": "p5", "name": "message_type", "value": "={{ $json.body?.message_type ?? $json.message_type ?? 'conversation' }}", "type": "string" },
+        { "id": "p6", "name": "received_at", "value": "={{ $json.body?.received_at ?? $json.received_at ?? new Date().toISOString() }}", "type": "string" },
+        { "id": "p7", "name": "control_version", "value": "={{ $json.body?.control_version ?? $json.control_version ?? 0 }}", "type": "number" }
+      ] }, "options": {} },
+      "id": "n-chaves", "name": "Set - Preparar Chaves do Buffer",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [-960, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST", "url": "=http://host.docker.internal:3100/api/internal/buffer/append",
+        "sendBody": true, "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id, message: $json.message, message_type: $json.message_type, received_at: $json.received_at, control_version: $json.control_version } }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "n-append", "name": "HTTP - Push Atômico no Buffer",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [-740, 380]
+    },
+    {
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "r1", "name": "appended", "value": "={{ $json.appended }}", "type": "boolean" },
+        { "id": "r2", "name": "duplicate", "value": "={{ $json.duplicate }}", "type": "boolean" },
+        { "id": "r3", "name": "force_flush", "value": "={{ $json.force_flush }}", "type": "boolean" },
+        { "id": "r4", "name": "instance_name", "value": "={{ $('Set - Preparar Chaves do Buffer').item.json.instance_name }}", "type": "string" },
+        { "id": "r5", "name": "chat_id", "value": "={{ $('Set - Preparar Chaves do Buffer').item.json.chat_id }}", "type": "string" },
+        { "id": "r6", "name": "message_id", "value": "={{ $('Set - Preparar Chaves do Buffer').item.json.message_id }}", "type": "string" },
+        { "id": "r7", "name": "control_version", "value": "={{ $('Set - Preparar Chaves do Buffer').item.json.control_version }}", "type": "number" }
+      ] }, "options": {} },
+      "id": "n-interp-push", "name": "Set - Interpretar Resultado do Push",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [-520, 380]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+        "conditions": [ { "leftValue": "={{ $json.duplicate }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } } ] }, "options": {} },
+      "id": "n-if-dup", "name": "IF - Mensagem Duplicada?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [-300, 380]
+    },
+    {
+      "parameters": { "mode": "manual", "assignments": { "assignments": [
+        { "id": "d1", "name": "buffer_status", "value": "duplicate", "type": "string" } ] }, "options": {} },
+      "id": "n-encerrar-dup", "name": "Encerrar - Duplicada",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [-80, 200]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+        "conditions": [ { "leftValue": "={{ $json.force_flush }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } } ] }, "options": {} },
+      "id": "n-if-force", "name": "IF - Force Flush?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [-80, 460]
+    },
+    {
+      "parameters": { "amount": "={{ $env.MESSAGE_BUFFER_WAIT_SECONDS || 10 }}", "unit": "seconds" },
+      "id": "n-wait", "name": "Wait - Janela de 10 Segundos",
+      "type": "n8n-nodes-base.wait", "typeVersion": 1.1, "position": [140, 560], "webhookId": "modulo-03-wait"
+    },
+    {
+      "parameters": {
+        "method": "GET", "url": "=http://host.docker.internal:3100/api/internal/buffer/latest?instance_name={{ $json.instance_name }}&chat_id={{ $json.chat_id }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "n-latest", "name": "HTTP - Consultar Última Mensagem",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [380, 460]
+    },
+    {
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "v1", "name": "is_latest", "value": "={{ String($json.latest_message_id) === String($('Set - Interpretar Resultado do Push').item.json.message_id) }}", "type": "boolean" },
+        { "id": "v2", "name": "instance_name", "value": "={{ $('Set - Interpretar Resultado do Push').item.json.instance_name }}", "type": "string" },
+        { "id": "v3", "name": "chat_id", "value": "={{ $('Set - Interpretar Resultado do Push').item.json.chat_id }}", "type": "string" },
+        { "id": "v4", "name": "message_id", "value": "={{ $('Set - Interpretar Resultado do Push').item.json.message_id }}", "type": "string" },
+        { "id": "v5", "name": "control_version", "value": "={{ $('Set - Interpretar Resultado do Push').item.json.control_version }}", "type": "number" }
+      ] }, "options": {} },
+      "id": "n-verif-latest", "name": "Set - Verificar se É a Última Execução",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [600, 460]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+        "conditions": [ { "leftValue": "={{ $json.is_latest }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } } ] }, "options": {} },
+      "id": "n-if-latest", "name": "IF - Esta Execução Ainda é a Última?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [820, 460]
+    },
+    {
+      "parameters": { "mode": "manual", "assignments": { "assignments": [
+        { "id": "o1", "name": "buffer_status", "value": "obsolete", "type": "string" } ] }, "options": {} },
+      "id": "n-obsoleta", "name": "Set - Execução Obsoleta",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [1040, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST", "url": "=http://host.docker.internal:3100/api/internal/buffer/claim",
+        "sendBody": true, "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id } }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "n-claim", "name": "HTTP - Claim e Drain Atômico",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1040, 540]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+        "conditions": [ { "leftValue": "={{ $json.claimed }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } } ] }, "options": {} },
+      "id": "n-if-claim", "name": "IF - Claim Confirmado?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [1260, 540]
+    },
+    {
+      "parameters": { "mode": "manual", "assignments": { "assignments": [
+        { "id": "of1", "name": "buffer_status", "value": "empty_or_claimed", "type": "string" } ] }, "options": {} },
+      "id": "n-outro-fluxo", "name": "Encerrar - Outro Fluxo Assumiu",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [1480, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parseia e ordena o buffer por received_at. Identidade por message_id\n// (nunca por texto). Item invalido (JSON quebrado/sem campos) e' filtrado.\nconst raw = $json.items ?? $json.result ?? [];\nconst items = Array.isArray(raw) ? raw : [];\nconst parsed = items.map(i => {\n  if (typeof i === 'string') { try { return JSON.parse(i); } catch { return null; } }\n  return i;\n}).filter(i => i && typeof i.message_id === 'string' && typeof i.message === 'string' && i.message.trim() !== '');\nparsed.sort((a,b) => {\n  const ta = Date.parse(a.received_at), tb = Date.parse(b.received_at);\n  if (!Number.isNaN(ta) && !Number.isNaN(tb) && ta !== tb) return ta - tb;\n  return String(a.buffered_at ?? '').localeCompare(String(b.buffered_at ?? ''));\n});\nconst messages = parsed.map(i => String(i.message).trim());\nreturn [{ json: {\n  ...$json,\n  buffer_claimed: true,\n  buffered_messages: parsed,\n  buffered_message_ids: parsed.map(i => i.message_id),\n  buffer_count: parsed.length,\n  buffer_total_characters: messages.reduce((t,m) => t + m.length, 0),\n  buffer_started_at: parsed[0]?.received_at ?? null,\n  buffer_ended_at: parsed[parsed.length-1]?.received_at ?? null,\n} }];"
+      },
+      "id": "n-code-parse", "name": "Code - Parsear e Ordenar Buffer",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1480, 540]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+        "conditions": [
+          { "leftValue": "={{ $json.buffer_count }}", "rightValue": "={{ Number($env.MESSAGE_BUFFER_MAX_MESSAGES || 50) }}", "operator": { "type": "number", "operation": "lte" } },
+          { "leftValue": "={{ $json.buffer_total_characters }}", "rightValue": "={{ Number($env.MESSAGE_BUFFER_MAX_CHARACTERS || 30000) }}", "operator": { "type": "number", "operation": "lte" } }
+        ] }, "options": {} },
+      "id": "n-if-limites", "name": "IF - Buffer Dentro dos Limites?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [1700, 540]
+    },
+    {
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "le1", "name": "buffer_status", "value": "error", "type": "string" },
+        { "id": "le2", "name": "buffer_reason", "value": "BUFFER_LIMIT_EXCEEDED", "type": "string" },
+        { "id": "le3", "name": "allow_ai", "value": "={{ false }}", "type": "boolean" }
+      ] }, "options": {} },
+      "id": "n-limite", "name": "Set - Limite Excedido",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [1920, 360]
+    },
+    {
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "co1", "name": "message", "value": "={{ $json.buffered_messages.map(i => String(i.message).trim()).filter(Boolean).join('\\n\\n') }}", "type": "string" },
+        { "id": "co2", "name": "content", "value": "={{ $json.buffered_messages.map(i => String(i.message).trim()).filter(Boolean).join('\\n\\n') }}", "type": "string" },
+        { "id": "co3", "name": "buffer_status", "value": "consolidated", "type": "string" },
+        { "id": "co4", "name": "processing_status", "value": "ok", "type": "string" }
+      ] }, "options": {} },
+      "id": "n-consolidar", "name": "Set - Consolidar Mensagens",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [1920, 620]
+    },
+    {
+      "parameters": {
+        "method": "GET", "url": "=http://host.docker.internal:3100/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/control",
+        "options": { "timeout": 10000 }
+      },
+      "id": "n-revalidar", "name": "HTTP - Revalidar Human Takeover",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [2140, 620]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and",
+        "conditions": [ { "leftValue": "={{ $json.human_takeover }}", "rightValue": "={{ false }}", "operator": { "type": "boolean", "operation": "equals" } } ] }, "options": {} },
+      "id": "n-if-liberada", "name": "IF - IA Continua Liberada?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [2360, 620]
+    },
+    {
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "bl1", "name": "buffer_status", "value": "blocked_after_wait", "type": "string" },
+        { "id": "bl2", "name": "human_takeover", "value": "={{ true }}", "type": "boolean" },
+        { "id": "bl3", "name": "allow_ai", "value": "={{ false }}", "type": "boolean" },
+        { "id": "bl4", "name": "flow_action", "value": "stop", "type": "string" }
+      ] }, "options": {} },
+      "id": "n-bloqueado", "name": "Set - Bloqueado",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [2580, 440]
+    },
+    {
+      "parameters": {
+        "method": "POST", "url": "=http://host.docker.internal:3100/api/internal/buffer/checkpoint",
+        "sendBody": true, "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, owner_message_id: $json.message_id, message_ids: $json.buffered_message_ids, consolidated_message: $json.message, message_count: $json.buffer_count } }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "n-checkpoint", "name": "HTTP - Persistir Checkpoint",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [2580, 700]
+    },
+    {
+      "parameters": {
+        "method": "POST", "url": "=http://host.docker.internal:3100/api/internal/buffer/ack",
+        "sendBody": true, "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id } }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "n-ack", "name": "HTTP - ACK Processing",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [2800, 700]
+    },
+    {
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "sa1", "name": "buffer_status", "value": "consolidated", "type": "string" },
+        { "id": "sa2", "name": "allow_ai", "value": "={{ true }}", "type": "boolean" },
+        { "id": "sa3", "name": "flow_action", "value": "continue_to_buffer", "type": "string" }
+      ] }, "options": {} },
+      "id": "n-saida", "name": "Set - Saída para Módulo de IA",
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [3020, 700]
+    }
+  ],
+  "connections": {
+    "Entrada - Módulo 2 (Webhook Interno)": { "main": [ [ { "node": "IF - Pode Entrar no Buffer?", "type": "main", "index": 0 } ] ] },
+    "IF - Pode Entrar no Buffer?": { "main": [ [ { "node": "Set - Preparar Chaves do Buffer", "type": "main", "index": 0 } ], [ { "node": "Set - Ignorar", "type": "main", "index": 0 } ] ] },
+    "Set - Preparar Chaves do Buffer": { "main": [ [ { "node": "HTTP - Push Atômico no Buffer", "type": "main", "index": 0 } ] ] },
+    "HTTP - Push Atômico no Buffer": { "main": [ [ { "node": "Set - Interpretar Resultado do Push", "type": "main", "index": 0 } ] ] },
+    "Set - Interpretar Resultado do Push": { "main": [ [ { "node": "IF - Mensagem Duplicada?", "type": "main", "index": 0 } ] ] },
+    "IF - Mensagem Duplicada?": { "main": [ [ { "node": "Encerrar - Duplicada", "type": "main", "index": 0 } ], [ { "node": "IF - Force Flush?", "type": "main", "index": 0 } ] ] },
+    "IF - Force Flush?": { "main": [ [ { "node": "HTTP - Consultar Última Mensagem", "type": "main", "index": 0 } ], [ { "node": "Wait - Janela de 10 Segundos", "type": "main", "index": 0 } ] ] },
+    "Wait - Janela de 10 Segundos": { "main": [ [ { "node": "HTTP - Consultar Última Mensagem", "type": "main", "index": 0 } ] ] },
+    "HTTP - Consultar Última Mensagem": { "main": [ [ { "node": "Set - Verificar se É a Última Execução", "type": "main", "index": 0 } ] ] },
+    "Set - Verificar se É a Última Execução": { "main": [ [ { "node": "IF - Esta Execução Ainda é a Última?", "type": "main", "index": 0 } ] ] },
+    "IF - Esta Execução Ainda é a Última?": { "main": [ [ { "node": "HTTP - Claim e Drain Atômico", "type": "main", "index": 0 } ], [ { "node": "Set - Execução Obsoleta", "type": "main", "index": 0 } ] ] },
+    "HTTP - Claim e Drain Atômico": { "main": [ [ { "node": "IF - Claim Confirmado?", "type": "main", "index": 0 } ] ] },
+    "IF - Claim Confirmado?": { "main": [ [ { "node": "Code - Parsear e Ordenar Buffer", "type": "main", "index": 0 } ], [ { "node": "Encerrar - Outro Fluxo Assumiu", "type": "main", "index": 0 } ] ] },
+    "Code - Parsear e Ordenar Buffer": { "main": [ [ { "node": "IF - Buffer Dentro dos Limites?", "type": "main", "index": 0 } ] ] },
+    "IF - Buffer Dentro dos Limites?": { "main": [ [ { "node": "Set - Consolidar Mensagens", "type": "main", "index": 0 } ], [ { "node": "Set - Limite Excedido", "type": "main", "index": 0 } ] ] },
+    "Set - Consolidar Mensagens": { "main": [ [ { "node": "HTTP - Revalidar Human Takeover", "type": "main", "index": 0 } ] ] },
+    "HTTP - Revalidar Human Takeover": { "main": [ [ { "node": "IF - IA Continua Liberada?", "type": "main", "index": 0 } ] ] },
+    "IF - IA Continua Liberada?": { "main": [ [ { "node": "HTTP - Persistir Checkpoint", "type": "main", "index": 0 } ], [ { "node": "Set - Bloqueado", "type": "main", "index": 0 } ] ] },
+    "HTTP - Persistir Checkpoint": { "main": [ [ { "node": "HTTP - ACK Processing", "type": "main", "index": 0 } ] ] },
+    "HTTP - ACK Processing": { "main": [ [ { "node": "Set - Saída para Módulo de IA", "type": "main", "index": 0 } ] ] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": { "templateId": "whatjuris-modulo-03" },
+  "tags": [ { "name": "whatjuris" }, { "name": "modulo-03" } ]
+}

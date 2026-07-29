@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { withAuth, BadRequest, Forbidden } from '@/lib/auth/guard';
 import { dealWhere } from '@/lib/query/scope';
+import { applyListFilters } from '@/lib/query/deal-filters';
 
 const createSchema = z.object({
   title: z.string().trim().min(1, 'Título obrigatório.').max(200),
@@ -26,23 +27,31 @@ const createSchema = z.object({
 
 async function handler(req, res, ctx) {
   if (req.method === 'GET') {
-    const { stageId, stageKey, legalArea, ownerId, page = '1', limit = '100' } = req.query;
+    const { page = '1', limit = '100' } = req.query;
     const take = Math.min(parseInt(limit, 10) || 100, 200);
     const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
 
-    const where = dealWhere(ctx);
+    // Filtros síncronos (status/urgência/busca) via helper testável.
+    const { where, contactAnd, needsHumanFilter } = applyListFilters(dealWhere(ctx), req.query);
 
-    if (stageId) where.stageId = stageId;
-    if (stageKey) where.stage = { key: stageKey };
-    if (legalArea) where.legalArea = legalArea;
-    if (ownerId) where.ownerId = ownerId;
+    // "atendimento humano": deals cujo contato tem controle humano ativo.
+    if (needsHumanFilter) {
+      const humanControls = await prisma.conversationControl.findMany({
+        where: { mode: 'human', blockedUntil: { gt: new Date() } },
+        select: { chatId: true },
+      });
+      const chatIds = humanControls.map((c) => c.chatId);
+      contactAnd.push({ whatsapp: { in: chatIds.length ? chatIds : ['__none__'] } });
+    }
+    if (contactAnd.length) where.contact = { ...(where.contact || {}), AND: contactAnd };
 
-    const [deals, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       prisma.deal.findMany({
         where,
         select: {
           id: true, title: true, status: true, legalArea: true,
           priority: true, value: true, position: true, enteredStageAt: true,
+          urgencia: true, faseTriage: true, qualifiedAt: true, instanceName: true,
           createdAt: true, updatedAt: true,
           contact: { select: { id: true, name: true, whatsapp: true } },
           stage: { select: { id: true, key: true, name: true, color: true } },
@@ -54,6 +63,11 @@ async function handler(req, res, ctx) {
       }),
       prisma.deal.count({ where }),
     ]);
+
+    // instance_name default (deals antigos têm instanceName null) — o frontend
+    // usa isto na URL dos endpoints de takeover/control/envio.
+    const fallbackInstance = process.env.WHATSAPP_INSTANCE_NAME || 'escritorio-principal';
+    const deals = rows.map((d) => ({ ...d, instanceName: d.instanceName || fallbackInstance }));
 
     return res.status(200).json({ deals, total });
   }

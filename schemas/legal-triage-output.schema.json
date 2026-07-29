@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LegalTriageOutput",
+  "description": "Saída estrita do Agente de Triagem Jurídica (Módulo 4). Autorada pela implementação — a 'seção 13 do prompt original' não foi fornecida; ajustar se necessário.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dados_extraidos", "mensagem_para_cliente", "fase_triagem"],
+  "properties": {
+    "dados_extraidos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nome", "area", "resumo_caso", "urgencia"],
+      "properties": {
+        "nome": { "type": ["string", "null"] },
+        "area": { "type": ["string", "null"] },
+        "resumo_caso": { "type": ["string", "null"] },
+        "urgencia": { "type": ["string", "null"], "enum": ["Baixa", "Média", "Alta", null] }
+      }
+    },
+    "mensagem_para_cliente": { "type": "string", "minLength": 1 },
+    "fase_triagem": { "type": "string", "enum": ["coletando_dados", "qualificado", "desqualificado"] },
+    "lead_qualificado": { "type": "boolean" }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "WABA_ID_1",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "551133333333", "phone_number_id": "PHONE_NUMBER_ID" },
+            "contacts": [{ "profile": { "name": "João da Silva" }, "wa_id": "5511999999999" }],
+            "messages": [
+              { "from": "5511999999999", "id": "wamid.B1", "timestamp": "1785252600", "type": "text", "text": { "body": "Primeira" } },
+              { "from": "5511999999999", "id": "wamid.B2", "timestamp": "1785252601", "type": "text", "text": { "body": "Segunda" } }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "WABA_ID_2",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "551133333333", "phone_number_id": "PHONE_NUMBER_ID" },
+            "contacts": [{ "profile": { "name": "Maria Souza" }, "wa_id": "5511988888888" }],
+            "messages": [
+              { "from": "5511988888888", "id": "wamid.B3", "timestamp": "1785252602", "type": "text", "text": { "body": "Terceira" } }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

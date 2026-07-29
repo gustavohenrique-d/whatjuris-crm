@@ -64,6 +64,8 @@ const PERMISSOES = [
     // Relatórios (2)
     ['report.read.own', 'Ver os próprios relatórios'],
     ['report.read.all', 'Ver todos os relatórios'],
+    // Conversas / Human Takeover (1) — Módulo 2
+    ['conversation.takeover', 'Assumir e devolver conversas (atendimento humano)'],
 ];
 
 // ---------------------------------------------------------------------------
@@ -96,6 +98,7 @@ const PAPEIS = [
             'custom_field.read',
             'organization.read',
             'report.read.own', 'report.read.all',
+            'conversation.takeover',
         ],
     },
     {
@@ -108,6 +111,7 @@ const PAPEIS = [
             'activity.create', 'activity.read.own', 'activity.update.own',
             'pipeline.read', 'user.read', 'custom_field.read',
             'organization.read', 'report.read.own',
+            'conversation.takeover',
         ],
     },
     {
@@ -119,6 +123,7 @@ const PAPEIS = [
             'deal.read.all', 'deal.move',
             'activity.create', 'activity.read.all',
             'pipeline.read', 'user.read', 'custom_field.read', 'organization.read',
+            'conversation.takeover',
         ],
     },
     {

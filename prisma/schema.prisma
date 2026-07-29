@@ -313,6 +313,11 @@ model Deal {
     // 0 = normal, 1 = alta, 2 = urgente (CHECK no banco)
     priority        Int           @default(0)
     legalArea       String?       @map("legal_area")
+    // Triagem jurídica (Módulo 4)
+    urgencia        String?       @db.VarChar(10)
+    faseTriage      String        @default("coletando_dados") @map("fase_triagem") @db.VarChar(30)
+    qualifiedAt     DateTime?     @map("qualified_at") @db.Timestamptz
+    instanceName    String?       @map("instance_name") @db.VarChar(100)
     expectedCloseAt DateTime?     @map("expected_close_at")
     // momento em que o deal entrou no estágio atual — mantido pelo trigger
     enteredStageAt  DateTime      @default(now()) @map("entered_stage_at")
@@ -427,4 +432,115 @@ model AuditLog {
     @@index([resource, resourceId])
     @@index([createdAt])
     @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Idempotência do webhook do WhatsApp (recepção/normalização)
+// Guarda o message_id da Meta já processado para não reprocessar reentregas
+// (a Meta reenvia em caso de timeout). message_id é único.
+// ---------------------------------------------------------------------------
+
+model WebhookIdempotency {
+    id          String   @id @default(uuid()) @db.Uuid
+    messageId   String   @unique @map("message_id")
+    chatId      String   @map("chat_id")
+    processedAt DateTime @default(now()) @map("processed_at")
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @updatedAt @map("updated_at")
+
+    @@index([processedAt])
+    @@map("webhook_idempotency")
+}
+
+// ---------------------------------------------------------------------------
+// Human Takeover (Módulo 2) — controle de quem responde a conversa: IA ou humano
+// Fonte de verdade do bloqueio; o Redis (opcional) é só cache. Uma linha por
+// (instance_name, chat_id). Eventos são append-only (auditoria).
+// ---------------------------------------------------------------------------
+
+model ConversationControl {
+    id             String    @id @default(uuid()) @db.Uuid
+    dealId         String?   @map("deal_id") @db.Uuid
+    instanceName   String    @map("instance_name") @db.VarChar(100)
+    chatId         String    @map("chat_id") @db.VarChar(100)
+    mode           String    @default("ai")
+    blockedUntil   DateTime? @map("blocked_until") @db.Timestamptz
+    takenOverAt    DateTime? @map("taken_over_at") @db.Timestamptz
+    takenOverBy    String?   @map("taken_over_by") @db.Uuid
+    takeoverSource String?   @map("takeover_source") @db.VarChar(30)
+    controlVersion BigInt    @default(0) @map("control_version")
+    createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+    updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+    events ConversationControlEvent[]
+
+    @@unique([instanceName, chatId])
+    @@map("conversation_controls")
+}
+
+model ConversationControlEvent {
+    id                    String   @id @default(uuid()) @db.Uuid
+    conversationControlId String   @map("conversation_control_id") @db.Uuid
+    eventType             String   @map("event_type") @db.VarChar(30)
+    actorUserId           String?  @map("actor_user_id") @db.Uuid
+    source                String   @db.VarChar(30)
+    messageId             String?  @map("message_id") @db.VarChar(255)
+    previousMode          String?  @map("previous_mode") @db.VarChar(10)
+    newMode               String   @map("new_mode") @db.VarChar(10)
+    metadata              Json     @default("{}")
+    createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+    control ConversationControl @relation(fields: [conversationControlId], references: [id], onDelete: Cascade)
+
+    @@index([conversationControlId])
+    @@map("conversation_control_events")
+}
+
+// ---------------------------------------------------------------------------
+// Buffer de mensagens (Módulo 3) — checkpoint do lote consolidado antes da IA.
+// O buffer vive no Redis; esta tabela é a persistência/idempotência do lote.
+// ---------------------------------------------------------------------------
+
+model MessageBatch {
+    id                  String    @id @default(uuid()) @db.Uuid
+    instanceName        String    @map("instance_name") @db.VarChar(100)
+    chatId              String    @map("chat_id") @db.VarChar(100)
+    ownerMessageId      String    @map("owner_message_id") @db.VarChar(255)
+    messageIds          Json      @map("message_ids")
+    consolidatedMessage String    @map("consolidated_message")
+    messageCount        Int       @map("message_count")
+    status              String    @default("pending")
+    createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+    processedAt         DateTime? @map("processed_at") @db.Timestamptz
+
+    @@unique([instanceName, chatId, ownerMessageId])
+    @@map("message_batches")
+}
+
+// ---------------------------------------------------------------------------
+// Fragmentos de resposta enviados ao WhatsApp (Módulo 5) — idempotência e
+// rastreio de envio (uma linha por fragmento de uma resposta da IA).
+// ---------------------------------------------------------------------------
+
+model OutboundMessageFragment {
+    id              String    @id @default(uuid()) @db.Uuid
+    dealId          String?   @map("deal_id") @db.Uuid
+    instanceName    String    @map("instance_name") @db.VarChar(100)
+    chatId          String    @map("chat_id") @db.VarChar(100)
+    responseId      String    @map("response_id") @db.VarChar(255)
+    sourceMessageId String    @map("source_message_id") @db.VarChar(255)
+    fragmentId      String    @map("fragment_id") @db.VarChar(300)
+    fragmentIndex   Int       @map("fragment_index")
+    fragmentTotal   Int       @map("fragment_total")
+    contentHash     String    @map("content_hash") @db.VarChar(128)
+    status          String    @default("reserved")
+    metaMessageId   String?   @map("meta_message_id") @db.VarChar(255)
+    attempts        Int       @default(0)
+    lastErrorCode   String?   @map("last_error_code") @db.VarChar(100)
+    reservedAt      DateTime  @default(now()) @map("reserved_at") @db.Timestamptz
+    sentAt          DateTime? @map("sent_at") @db.Timestamptz
+    updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+    @@unique([instanceName, chatId, responseId, fragmentIndex])
+    @@map("outbound_message_fragments")
 }

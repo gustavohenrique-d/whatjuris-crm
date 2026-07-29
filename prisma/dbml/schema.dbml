@@ -169,6 +169,10 @@ Table deals {
   probability Int
   priority Int [not null, default: 0]
   legalArea String
+  urgencia String
+  faseTriage String [not null, default: 'coletando_dados']
+  qualifiedAt DateTime
+  instanceName String
   expectedCloseAt DateTime
   enteredStageAt DateTime [default: `now()`, not null]
   customData Json [not null, default: '{}']
@@ -245,6 +249,90 @@ Table audit_logs {
   ip String
   userAgent String
   createdAt DateTime [default: `now()`, not null]
+}
+
+Table webhook_idempotency {
+  id String [pk]
+  messageId String [unique, not null]
+  chatId String [not null]
+  processedAt DateTime [default: `now()`, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table conversation_controls {
+  id String [pk]
+  dealId String
+  instanceName String [not null]
+  chatId String [not null]
+  mode String [not null, default: 'ai']
+  blockedUntil DateTime
+  takenOverAt DateTime
+  takenOverBy String
+  takeoverSource String
+  controlVersion BigInt [not null, default: 0]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  events conversation_control_events [not null]
+
+  indexes {
+    (instanceName, chatId) [unique]
+  }
+}
+
+Table conversation_control_events {
+  id String [pk]
+  conversationControlId String [not null]
+  eventType String [not null]
+  actorUserId String
+  source String [not null]
+  messageId String
+  previousMode String
+  newMode String [not null]
+  metadata Json [not null, default: '{}']
+  createdAt DateTime [default: `now()`, not null]
+  control conversation_controls [not null]
+}
+
+Table message_batches {
+  id String [pk]
+  instanceName String [not null]
+  chatId String [not null]
+  ownerMessageId String [not null]
+  messageIds Json [not null]
+  consolidatedMessage String [not null]
+  messageCount Int [not null]
+  status String [not null, default: 'pending']
+  createdAt DateTime [default: `now()`, not null]
+  processedAt DateTime
+
+  indexes {
+    (instanceName, chatId, ownerMessageId) [unique]
+  }
+}
+
+Table outbound_message_fragments {
+  id String [pk]
+  dealId String
+  instanceName String [not null]
+  chatId String [not null]
+  responseId String [not null]
+  sourceMessageId String [not null]
+  fragmentId String [not null]
+  fragmentIndex Int [not null]
+  fragmentTotal Int [not null]
+  contentHash String [not null]
+  status String [not null, default: 'reserved']
+  metaMessageId String
+  attempts Int [not null, default: 0]
+  lastErrorCode String
+  reservedAt DateTime [default: `now()`, not null]
+  sentAt DateTime
+  updatedAt DateTime [not null]
+
+  indexes {
+    (instanceName, chatId, responseId, fragmentIndex) [unique]
+  }
 }
 
 Enum UserStatus {
@@ -340,3 +428,5 @@ Ref: activities.dealId > deals.id [delete: Cascade]
 Ref: activities.contactId > contacts.id [delete: Cascade]
 
 Ref: activities.userId > users.id [delete: Set Null]
+
+Ref: conversation_control_events.conversationControlId > conversation_controls.id [delete: Cascade]
