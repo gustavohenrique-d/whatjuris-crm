@@ -23,7 +23,7 @@
           "conditions": [
             {
               "leftValue": "={{ $json.headers['x-internal-webhook-secret'] }}",
-              "rightValue": "={{ $env.N8N_INTERNAL_WEBHOOK_SECRET }}",
+              "rightValue": "={{ $env.WEBHOOK_SECRET }}",
               "operator": { "type": "string", "operation": "equals" }
             }
           ]
@@ -94,11 +94,11 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://localhost:3100/api/internal/idempotency/check",
+        "url": "=https://whatjuris-crm.onrender.com/api/internal/idempotency/check",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-webhook-secret", "value": "={{ $env.INTERNAL_API_SECRET }}" }
+            { "name": "x-webhook-secret", "value": "={{ $env.WEBHOOK_SECRET }}" }
           ]
         },
         "sendBody": true,

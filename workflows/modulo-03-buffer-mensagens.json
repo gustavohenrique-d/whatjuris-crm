@@ -46,7 +46,7 @@
     },
     {
       "parameters": {
-        "method": "POST", "url": "=http://host.docker.internal:3100/api/internal/buffer/append",
+        "method": "POST", "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/append",
         "sendBody": true, "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id, message: $json.message, message_type: $json.message_type, received_at: $json.received_at, control_version: $json.control_version } }}",
         "options": { "timeout": 10000 }
@@ -92,7 +92,7 @@
     },
     {
       "parameters": {
-        "method": "GET", "url": "=http://host.docker.internal:3100/api/internal/buffer/latest?instance_name={{ $json.instance_name }}&chat_id={{ $json.chat_id }}",
+        "method": "GET", "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/latest?instance_name={{ $json.instance_name }}&chat_id={{ $json.chat_id }}",
         "options": { "timeout": 10000 }
       },
       "id": "n-latest", "name": "HTTP - Consultar Última Mensagem",
@@ -123,7 +123,7 @@
     },
     {
       "parameters": {
-        "method": "POST", "url": "=http://host.docker.internal:3100/api/internal/buffer/claim",
+        "method": "POST", "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/claim",
         "sendBody": true, "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id } }}",
         "options": { "timeout": 10000 }
@@ -180,7 +180,7 @@
     },
     {
       "parameters": {
-        "method": "GET", "url": "=http://host.docker.internal:3100/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/control",
+        "method": "GET", "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/control",
         "options": { "timeout": 10000 }
       },
       "id": "n-revalidar", "name": "HTTP - Revalidar Human Takeover",
@@ -204,7 +204,7 @@
     },
     {
       "parameters": {
-        "method": "POST", "url": "=http://host.docker.internal:3100/api/internal/buffer/checkpoint",
+        "method": "POST", "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/checkpoint",
         "sendBody": true, "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, owner_message_id: $json.message_id, message_ids: $json.buffered_message_ids, consolidated_message: $json.message, message_count: $json.buffer_count } }}",
         "options": { "timeout": 10000 }
@@ -214,7 +214,7 @@
     },
     {
       "parameters": {
-        "method": "POST", "url": "=http://host.docker.internal:3100/api/internal/buffer/ack",
+        "method": "POST", "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/ack",
         "sendBody": true, "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id } }}",
         "options": { "timeout": 10000 }

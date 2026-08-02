@@ -38,7 +38,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://host.docker.internal:3100/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/control",
+        "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/control",
         "options": { "timeout": 10000 }
       },
       "id": "n-revalidar", "name": "HTTP - Revalidar Human Takeover",
@@ -77,7 +77,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://host.docker.internal:3100/api/conversations/{{ $('Set - Normalizar Entrada').item.json.instance_name }}/{{ $('Set - Normalizar Entrada').item.json.chat_id }}/control",
+        "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $('Set - Normalizar Entrada').item.json.instance_name }}/{{ $('Set - Normalizar Entrada').item.json.chat_id }}/control",
         "options": { "timeout": 10000 }
       },
       "id": "n-revalidar-frag", "name": "HTTP - Revalidar Antes do Fragmento",
@@ -94,7 +94,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://host.docker.internal:3100/api/internal/outbound-fragments/cancel-remaining",
+        "url": "=https://whatjuris-crm.onrender.com/api/internal/outbound-fragments/cancel-remaining",
         "sendBody": true, "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $('Set - Normalizar Entrada').item.json.instance_name, chat_id: $('Set - Normalizar Entrada').item.json.chat_id, response_id: $('Set - Normalizar Entrada').item.json.response_id, from_index: $json.fragment.index, reason: 'human_takeover' } }}",
         "options": { "timeout": 10000 }
@@ -110,7 +110,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://host.docker.internal:3100/api/internal/outbound-fragments/reserve",
+        "url": "=https://whatjuris-crm.onrender.com/api/internal/outbound-fragments/reserve",
         "sendBody": true, "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $('Set - Normalizar Entrada').item.json.instance_name, chat_id: $('Set - Normalizar Entrada').item.json.chat_id, response_id: $('Set - Normalizar Entrada').item.json.response_id, source_message_id: $('Set - Normalizar Entrada').item.json.message_id, fragment_id: $json.fragment.fragment_id, fragment_index: $json.fragment.index, fragment_total: $json.fragment.total, content: $json.fragment.text, expected_control_version: $('Set - Normalizar Entrada').item.json.expected_control_version } }}",
         "options": { "timeout": 10000 }
@@ -162,7 +162,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://host.docker.internal:3100/api/internal/outbound-fragments/{{ $('HTTP - Reservar Fragmento').item.json.reservation_id }}/confirm",
+        "url": "=https://whatjuris-crm.onrender.com/api/internal/outbound-fragments/{{ $('HTTP - Reservar Fragmento').item.json.reservation_id }}/confirm",
         "sendBody": true, "specifyBody": "json",
         "jsonBody": "={{ { meta_message_id: $('HTTP - Meta Enviar Texto').item.json.messages[0].id, sent_at: $now.toISO(), chat_id: $('Set - Normalizar Entrada').item.json.chat_id, instance_name: $('Set - Normalizar Entrada').item.json.instance_name, content: $('Loop Over Items').item.json.fragment.text, source_message_id: $('Set - Normalizar Entrada').item.json.message_id } }}",
         "options": { "timeout": 10000 }

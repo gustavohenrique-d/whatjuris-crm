@@ -43,7 +43,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://host.docker.internal:3100/api/internal/deals/by-chat?instance_name={{ $json.instance_name }}&chat_id={{ $json.chat_id }}",
+        "url": "=https://whatjuris-crm.onrender.com/api/internal/deals/by-chat?instance_name={{ $json.instance_name }}&chat_id={{ $json.chat_id }}",
         "options": { "timeout": 10000, "response": { "response": { "neverError": true } } }
       },
       "id": "n-carregar-deal", "name": "HTTP - Carregar Deal do CRM",
@@ -52,7 +52,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://host.docker.internal:3100/api/conversations/{{ $('Set - Preparar Sessão').item.json.instance_name }}/{{ $('Set - Preparar Sessão').item.json.chat_id }}/control",
+        "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $('Set - Preparar Sessão').item.json.instance_name }}/{{ $('Set - Preparar Sessão').item.json.chat_id }}/control",
         "options": { "timeout": 10000 }
       },
       "id": "n-revalidar-1", "name": "HTTP - Revalidar Human Takeover",
@@ -131,7 +131,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://host.docker.internal:3100/api/internal/deals/triage",
+        "url": "=https://whatjuris-crm.onrender.com/api/internal/deals/triage",
         "sendBody": true, "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, source_message_id: $json.source_message_id, buffered_message_ids: $json.buffered_message_ids, expected_control_version: $json.control_version, fase_triagem: $json.fase_triagem, dados_extraidos: $json.dados_extraidos, lead_qualificado: $json.lead_qualificado } }}",
         "options": { "timeout": 15000, "response": { "response": { "neverError": true } } }
@@ -161,7 +161,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://host.docker.internal:3100/api/conversations/{{ $('Set - Preparar Sessão').item.json.instance_name }}/{{ $('Set - Preparar Sessão').item.json.chat_id }}/control",
+        "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $('Set - Preparar Sessão').item.json.instance_name }}/{{ $('Set - Preparar Sessão').item.json.chat_id }}/control",
         "options": { "timeout": 10000 }
       },
       "id": "n-revalidar-2", "name": "HTTP - Revalidar Human Takeover (2)",
