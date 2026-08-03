@@ -12,7 +12,10 @@
       "name": "Entrada - Módulo 1 (Webhook Interno)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1180, 320],
+      "position": [
+        -1180,
+        320
+      ],
       "webhookId": "modulo-02-human-takeover"
     },
     {
@@ -20,12 +23,42 @@
         "mode": "manual",
         "assignments": {
           "assignments": [
-            { "id": "s1", "name": "instance_name", "value": "={{ ($json.body?.instance_name || $json.instance_name || 'escritorio-principal').toLowerCase().replace(/[^a-z0-9_-]/g, '_') }}", "type": "string" },
-            { "id": "s2", "name": "chat_id", "value": "={{ ($json.body?.chat_id || $json.chat_id || '').toString().replace(/\\D/g, '') }}", "type": "string" },
-            { "id": "s3", "name": "from_me", "value": "={{ ($json.body?.from_me ?? $json.from_me) === true || ($json.body?.from_me ?? $json.from_me) === 'true' }}", "type": "boolean" },
-            { "id": "s4", "name": "message_id", "value": "={{ $json.body?.message_id || $json.message_id }}", "type": "string" },
-            { "id": "s5", "name": "message", "value": "={{ $json.body?.message ?? $json.message ?? '' }}", "type": "string" },
-            { "id": "s6", "name": "received_at", "value": "={{ $json.body?.received_at || $json.received_at || new Date().toISOString() }}", "type": "string" }
+            {
+              "id": "s1",
+              "name": "instance_name",
+              "value": "={{ ($json.body?.instance_name || $json.instance_name || 'escritorio-principal').toLowerCase().replace(/[^a-z0-9_-]/g, '_') }}",
+              "type": "string"
+            },
+            {
+              "id": "s2",
+              "name": "chat_id",
+              "value": "={{ ($json.body?.chat_id || $json.chat_id || '').toString().replace(/\\D/g, '') }}",
+              "type": "string"
+            },
+            {
+              "id": "s3",
+              "name": "from_me",
+              "value": "={{ ($json.body?.from_me ?? $json.from_me) === true || ($json.body?.from_me ?? $json.from_me) === 'true' }}",
+              "type": "boolean"
+            },
+            {
+              "id": "s4",
+              "name": "message_id",
+              "value": "={{ $json.body?.message_id || $json.message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "s5",
+              "name": "message",
+              "value": "={{ $json.body?.message ?? $json.message ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "s6",
+              "name": "received_at",
+              "value": "={{ $json.body?.received_at || $json.received_at || new Date().toISOString() }}",
+              "type": "string"
+            }
           ]
         },
         "options": {}
@@ -34,7 +67,10 @@
       "name": "Set - Preparar e Sanitizar Entrada",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [-960, 320]
+      "position": [
+        -960,
+        320
+      ]
     },
     {
       "parameters": {
@@ -43,20 +79,40 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $json.instance_name, message_id: $json.message_id } }}",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        }
       },
       "id": "node-outbound-check",
       "name": "HTTP - Verificar Registro Outbound IA",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-740, 320]
+      "position": [
+        -740,
+        320
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "mode": "manual",
         "assignments": {
           "assignments": [
-            { "id": "o1", "name": "sender_origin", "value": "={{ ($('Set - Preparar e Sanitizar Entrada').item.json.from_me === false) ? 'client' : ($json.is_ai === true ? 'ai' : 'human_mobile') }}", "type": "string" }
+            {
+              "id": "o1",
+              "name": "sender_origin",
+              "value": "={{ ($('Set - Preparar e Sanitizar Entrada').item.json.from_me === false) ? 'client' : ($json.is_ai === true ? 'ai' : 'human_mobile') }}",
+              "type": "string"
+            }
           ]
         },
         "includeOtherFields": true,
@@ -66,14 +122,29 @@
       "name": "Set - Resolver Origem da Mensagem",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [-520, 320]
+      "position": [
+        -520,
+        320
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
           "combinator": "and",
-          "conditions": [ { "leftValue": "={{ $('Set - Preparar e Sanitizar Entrada').item.json.from_me }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } } ]
+          "conditions": [
+            {
+              "leftValue": "={{ $('Set - Preparar e Sanitizar Entrada').item.json.from_me }}",
+              "rightValue": "={{ true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
         },
         "options": {}
       },
@@ -81,14 +152,29 @@
       "name": "IF - from_me é true?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [-300, 320]
+      "position": [
+        -300,
+        320
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
           "combinator": "and",
-          "conditions": [ { "leftValue": "={{ $json.sender_origin }}", "rightValue": "ai", "operator": { "type": "string", "operation": "equals" } } ]
+          "conditions": [
+            {
+              "leftValue": "={{ $json.sender_origin }}",
+              "rightValue": "ai",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
         },
         "options": {}
       },
@@ -96,7 +182,10 @@
       "name": "IF - Origem é IA?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [-60, 180]
+      "position": [
+        -60,
+        180
+      ]
     },
     {
       "parameters": {
@@ -105,23 +194,58 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id, message: $json.message, sender_origin: 'ai' } }}",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        }
       },
       "id": "node-persistir-ai",
       "name": "HTTP - Persistir Mensagem da IA no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [180, 60]
+      "position": [
+        180,
+        60
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "mode": "manual",
         "assignments": {
           "assignments": [
-            { "id": "ai1", "name": "human_takeover", "value": "={{ false }}", "type": "boolean" },
-            { "id": "ai2", "name": "allow_ai", "value": "={{ false }}", "type": "boolean" },
-            { "id": "ai3", "name": "flow_action", "value": "stop", "type": "string" },
-            { "id": "ai4", "name": "sender_origin", "value": "ai", "type": "string" }
+            {
+              "id": "ai1",
+              "name": "human_takeover",
+              "value": "={{ false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "ai2",
+              "name": "allow_ai",
+              "value": "={{ false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "ai3",
+              "name": "flow_action",
+              "value": "stop",
+              "type": "string"
+            },
+            {
+              "id": "ai4",
+              "name": "sender_origin",
+              "value": "ai",
+              "type": "string"
+            }
           ]
         },
         "options": {}
@@ -130,7 +254,10 @@
       "name": "Set - Saída: IA",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [400, 60]
+      "position": [
+        400,
+        60
+      ]
     },
     {
       "parameters": {
@@ -139,13 +266,28 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { source: 'human_mobile', message_id: $json.message_id } }}",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        }
       },
       "id": "node-ativar-takeover",
       "name": "HTTP - Ativar Takeover no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [180, 260]
+      "position": [
+        180,
+        260
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -154,26 +296,76 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $('Set - Resolver Origem da Mensagem').item.json.instance_name, chat_id: $('Set - Resolver Origem da Mensagem').item.json.chat_id, message_id: $('Set - Resolver Origem da Mensagem').item.json.message_id, message: $('Set - Resolver Origem da Mensagem').item.json.message, sender_origin: 'human_mobile' } }}",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        }
       },
       "id": "node-persistir-humano",
       "name": "HTTP - Persistir Mensagem Humana no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [400, 260]
+      "position": [
+        400,
+        260
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "mode": "manual",
         "assignments": {
           "assignments": [
-            { "id": "h1", "name": "human_takeover", "value": "={{ true }}", "type": "boolean" },
-            { "id": "h2", "name": "allow_ai", "value": "={{ false }}", "type": "boolean" },
-            { "id": "h3", "name": "flow_action", "value": "stop", "type": "string" },
-            { "id": "h4", "name": "sender_origin", "value": "human_mobile", "type": "string" },
-            { "id": "h5", "name": "takeover_source", "value": "human_mobile", "type": "string" },
-            { "id": "h6", "name": "blocked_until", "value": "={{ $('HTTP - Ativar Takeover no CRM').item.json.blocked_until }}", "type": "string" },
-            { "id": "h7", "name": "control_version", "value": "={{ $('HTTP - Ativar Takeover no CRM').item.json.control_version }}", "type": "number" }
+            {
+              "id": "h1",
+              "name": "human_takeover",
+              "value": "={{ true }}",
+              "type": "boolean"
+            },
+            {
+              "id": "h2",
+              "name": "allow_ai",
+              "value": "={{ false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "h3",
+              "name": "flow_action",
+              "value": "stop",
+              "type": "string"
+            },
+            {
+              "id": "h4",
+              "name": "sender_origin",
+              "value": "human_mobile",
+              "type": "string"
+            },
+            {
+              "id": "h5",
+              "name": "takeover_source",
+              "value": "human_mobile",
+              "type": "string"
+            },
+            {
+              "id": "h6",
+              "name": "blocked_until",
+              "value": "={{ $('HTTP - Ativar Takeover no CRM').item.json.blocked_until }}",
+              "type": "string"
+            },
+            {
+              "id": "h7",
+              "name": "control_version",
+              "value": "={{ $('HTTP - Ativar Takeover no CRM').item.json.control_version }}",
+              "type": "number"
+            }
           ]
         },
         "options": {}
@@ -182,26 +374,56 @@
       "name": "Set - Saída: Controle Humano",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [620, 260]
+      "position": [
+        620,
+        260
+      ]
     },
     {
       "parameters": {
         "method": "GET",
         "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/control",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        }
       },
       "id": "node-consultar-controle",
       "name": "HTTP - Confirmar Controle no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-60, 460]
+      "position": [
+        -60,
+        460
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
           "combinator": "and",
-          "conditions": [ { "leftValue": "={{ $json.human_takeover }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } } ]
+          "conditions": [
+            {
+              "leftValue": "={{ $json.human_takeover }}",
+              "rightValue": "={{ true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
         },
         "options": {}
       },
@@ -209,7 +431,10 @@
       "name": "IF - Banco indica bloqueio?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [180, 460]
+      "position": [
+        180,
+        460
+      ]
     },
     {
       "parameters": {
@@ -218,23 +443,58 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { instance_name: $('Set - Resolver Origem da Mensagem').item.json.instance_name, chat_id: $('Set - Resolver Origem da Mensagem').item.json.chat_id, message_id: $('Set - Resolver Origem da Mensagem').item.json.message_id, message: $('Set - Resolver Origem da Mensagem').item.json.message, sender_origin: 'client' } }}",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        }
       },
       "id": "node-persistir-cliente",
       "name": "HTTP - Persistir Mensagem Cliente no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [400, 400]
+      "position": [
+        400,
+        400
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "mode": "manual",
         "assignments": {
           "assignments": [
-            { "id": "w1", "name": "human_takeover", "value": "={{ true }}", "type": "boolean" },
-            { "id": "w2", "name": "allow_ai", "value": "={{ false }}", "type": "boolean" },
-            { "id": "w3", "name": "flow_action", "value": "stop", "type": "string" },
-            { "id": "w4", "name": "sender_origin", "value": "client", "type": "string" }
+            {
+              "id": "w1",
+              "name": "human_takeover",
+              "value": "={{ true }}",
+              "type": "boolean"
+            },
+            {
+              "id": "w2",
+              "name": "allow_ai",
+              "value": "={{ false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "w3",
+              "name": "flow_action",
+              "value": "stop",
+              "type": "string"
+            },
+            {
+              "id": "w4",
+              "name": "sender_origin",
+              "value": "client",
+              "type": "string"
+            }
           ]
         },
         "options": {}
@@ -243,19 +503,52 @@
       "name": "Set - Saída: Aguardando Humano",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [620, 400]
+      "position": [
+        620,
+        400
+      ]
     },
     {
       "parameters": {
         "mode": "manual",
         "assignments": {
           "assignments": [
-            { "id": "c1", "name": "human_takeover", "value": "={{ false }}", "type": "boolean" },
-            { "id": "c2", "name": "allow_ai", "value": "={{ true }}", "type": "boolean" },
-            { "id": "c3", "name": "flow_action", "value": "continue_to_buffer", "type": "string" },
-            { "id": "c4", "name": "sender_origin", "value": "client", "type": "string" },
-            { "id": "c5", "name": "takeover_source", "value": "={{ null }}", "type": "string" },
-            { "id": "c6", "name": "control_version", "value": "={{ $json.control_version ?? 0 }}", "type": "number" }
+            {
+              "id": "c1",
+              "name": "human_takeover",
+              "value": "={{ false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "c2",
+              "name": "allow_ai",
+              "value": "={{ true }}",
+              "type": "boolean"
+            },
+            {
+              "id": "c3",
+              "name": "flow_action",
+              "value": "continue_to_buffer",
+              "type": "string"
+            },
+            {
+              "id": "c4",
+              "name": "sender_origin",
+              "value": "client",
+              "type": "string"
+            },
+            {
+              "id": "c5",
+              "name": "takeover_source",
+              "value": "={{ null }}",
+              "type": "string"
+            },
+            {
+              "id": "c6",
+              "name": "control_version",
+              "value": "={{ $json.control_version ?? 0 }}",
+              "type": "number"
+            }
           ]
         },
         "options": {}
@@ -264,26 +557,181 @@
       "name": "Set - Liberar para Buffer/IA",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [400, 560]
+      "position": [
+        400,
+        560
+      ]
     }
   ],
   "connections": {
-    "Entrada - Módulo 1 (Webhook Interno)": { "main": [ [ { "node": "Set - Preparar e Sanitizar Entrada", "type": "main", "index": 0 } ] ] },
-    "Set - Preparar e Sanitizar Entrada": { "main": [ [ { "node": "HTTP - Verificar Registro Outbound IA", "type": "main", "index": 0 } ] ] },
-    "HTTP - Verificar Registro Outbound IA": { "main": [ [ { "node": "Set - Resolver Origem da Mensagem", "type": "main", "index": 0 } ] ] },
-    "Set - Resolver Origem da Mensagem": { "main": [ [ { "node": "IF - from_me é true?", "type": "main", "index": 0 } ] ] },
-    "IF - from_me é true?": { "main": [ [ { "node": "IF - Origem é IA?", "type": "main", "index": 0 } ], [ { "node": "HTTP - Confirmar Controle no CRM", "type": "main", "index": 0 } ] ] },
-    "IF - Origem é IA?": { "main": [ [ { "node": "HTTP - Persistir Mensagem da IA no CRM", "type": "main", "index": 0 } ], [ { "node": "HTTP - Ativar Takeover no CRM", "type": "main", "index": 0 } ] ] },
-    "HTTP - Persistir Mensagem da IA no CRM": { "main": [ [ { "node": "Set - Saída: IA", "type": "main", "index": 0 } ] ] },
-    "HTTP - Ativar Takeover no CRM": { "main": [ [ { "node": "HTTP - Persistir Mensagem Humana no CRM", "type": "main", "index": 0 } ] ] },
-    "HTTP - Persistir Mensagem Humana no CRM": { "main": [ [ { "node": "Set - Saída: Controle Humano", "type": "main", "index": 0 } ] ] },
-    "HTTP - Confirmar Controle no CRM": { "main": [ [ { "node": "IF - Banco indica bloqueio?", "type": "main", "index": 0 } ] ] },
-    "IF - Banco indica bloqueio?": { "main": [ [ { "node": "HTTP - Persistir Mensagem Cliente no CRM", "type": "main", "index": 0 } ], [ { "node": "Set - Liberar para Buffer/IA", "type": "main", "index": 0 } ] ] },
-    "HTTP - Persistir Mensagem Cliente no CRM": { "main": [ [ { "node": "Set - Saída: Aguardando Humano", "type": "main", "index": 0 } ] ] }
+    "Entrada - Módulo 1 (Webhook Interno)": {
+      "main": [
+        [
+          {
+            "node": "Set - Preparar e Sanitizar Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Preparar e Sanitizar Entrada": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Verificar Registro Outbound IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Verificar Registro Outbound IA": {
+      "main": [
+        [
+          {
+            "node": "Set - Resolver Origem da Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Resolver Origem da Mensagem": {
+      "main": [
+        [
+          {
+            "node": "IF - from_me é true?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - from_me é true?": {
+      "main": [
+        [
+          {
+            "node": "IF - Origem é IA?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Confirmar Controle no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Origem é IA?": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Persistir Mensagem da IA no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Ativar Takeover no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Persistir Mensagem da IA no CRM": {
+      "main": [
+        [
+          {
+            "node": "Set - Saída: IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Ativar Takeover no CRM": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Persistir Mensagem Humana no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Persistir Mensagem Humana no CRM": {
+      "main": [
+        [
+          {
+            "node": "Set - Saída: Controle Humano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Confirmar Controle no CRM": {
+      "main": [
+        [
+          {
+            "node": "IF - Banco indica bloqueio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Banco indica bloqueio?": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Persistir Mensagem Cliente no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Liberar para Buffer/IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Persistir Mensagem Cliente no CRM": {
+      "main": [
+        [
+          {
+            "node": "Set - Saída: Aguardando Humano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {},
-  "meta": { "templateId": "whatjuris-modulo-02" },
-  "tags": [ { "name": "whatjuris" }, { "name": "modulo-02" } ]
+  "meta": {
+    "templateId": "whatjuris-modulo-02"
+  },
+  "tags": [
+    {
+      "name": "whatjuris"
+    },
+    {
+      "name": "modulo-02"
+    }
+  ]
 }
