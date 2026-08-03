@@ -5,17 +5,15 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "modulo-03-buffer-mensagens",
-        "responseMode": "onReceived",
-        "options": {},
-        "responseData": "firstEntryJson"
+        "options": {}
       },
-      "id": "n-entrada",
+      "id": "3301d43a-739f-41c3-a8e4-e457110f56cc",
       "name": "Entrada - Módulo 2 (Webhook Interno)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -1400,
-        400
+        -1328,
+        208
       ],
       "webhookId": "modulo-03-buffer-mensagens"
     },
@@ -24,7 +22,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -80,18 +80,17 @@
         },
         "options": {}
       },
-      "id": "n-if-precond",
+      "id": "58d09f00-a7ae-417e-855a-843d8c488cc1",
       "name": "IF - Pode Entrar no Buffer?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1180,
-        400
+        -1104,
+        208
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -110,19 +109,17 @@
         },
         "options": {}
       },
-      "id": "n-ignorar",
+      "id": "e74b6991-d64a-48cb-8967-d1c645bcd320",
       "name": "Set - Ignorar",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -960,
-        620
+        -880,
+        432
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
@@ -169,27 +166,22 @@
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-chaves",
+      "id": "6fd53c37-6ddc-4969-8cd1-e1087c00356f",
       "name": "Set - Preparar Chaves do Buffer",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -960,
-        380
+        -880,
+        192
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/append",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id, message: $json.message, message_type: $json.message_type, received_at: $json.received_at, control_version: $json.control_version } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -198,22 +190,26 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id, message: $json.message, message_type: $json.message_type, received_at: $json.received_at, control_version: $json.control_version } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-append",
+      "id": "1882e2fa-464e-4547-9e97-6d37cb114323",
       "name": "HTTP - Push Atômico no Buffer",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -740,
-        380
+        -656,
+        192
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
@@ -260,15 +256,16 @@
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-interp-push",
+      "id": "e218ecc6-296b-433e-a3af-bc34321058af",
       "name": "Set - Interpretar Resultado do Push",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -520,
-        380
+        -448,
+        192
       ]
     },
     {
@@ -276,7 +273,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -292,18 +291,17 @@
         },
         "options": {}
       },
-      "id": "n-if-dup",
+      "id": "32509ec9-82ea-451c-b2d3-437df412ecdb",
       "name": "IF - Mensagem Duplicada?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -300,
-        380
+        -224,
+        192
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -316,13 +314,13 @@
         },
         "options": {}
       },
-      "id": "n-encerrar-dup",
+      "id": "f8bdd36c-99bf-4f04-b74d-5cd3e010dfd1",
       "name": "Encerrar - Duplicada",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -80,
-        200
+        0,
+        0
       ]
     },
     {
@@ -330,7 +328,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -346,37 +346,32 @@
         },
         "options": {}
       },
-      "id": "n-if-force",
+      "id": "d902e041-b0a5-4050-9511-9a329dfa9c5f",
       "name": "IF - Force Flush?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -80,
-        460
+        0,
+        272
       ]
     },
     {
       "parameters": {
-        "amount": "={{ $env.MESSAGE_BUFFER_WAIT_SECONDS || 10 }}",
-        "unit": "seconds"
+        "amount": "={{ $env.MESSAGE_BUFFER_WAIT_SECONDS || 10 }}"
       },
-      "id": "n-wait",
+      "id": "0e34a747-ab64-4736-b901-1be3b6ea65d6",
       "name": "Wait - Janela de 10 Segundos",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        140,
-        560
+        224,
+        368
       ],
       "webhookId": "modulo-03-wait"
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/latest?instance_name={{ $json.instance_name }}&chat_id={{ $json.chat_id }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -385,22 +380,23 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-latest",
+      "id": "8e2d2085-5d3c-4b2a-8ef3-8809d32df3f0",
       "name": "HTTP - Consultar Última Mensagem",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        380,
-        460
+        464,
+        272
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
@@ -435,15 +431,16 @@
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-verif-latest",
+      "id": "a06d5285-d221-49a5-9602-5d335474f06e",
       "name": "Set - Verificar se É a Última Execução",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        600,
-        460
+        688,
+        272
       ]
     },
     {
@@ -451,7 +448,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -467,18 +466,17 @@
         },
         "options": {}
       },
-      "id": "n-if-latest",
+      "id": "d4b08042-3a83-415c-8cc8-8d19ae5e98c5",
       "name": "IF - Esta Execução Ainda é a Última?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        820,
-        460
+        912,
+        272
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -491,25 +489,19 @@
         },
         "options": {}
       },
-      "id": "n-obsoleta",
+      "id": "15395a6a-aeba-4a83-8e35-78fe88f304c3",
       "name": "Set - Execução Obsoleta",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1040,
-        280
+        1120,
+        80
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/claim",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -518,15 +510,21 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-claim",
+      "id": "93765375-4534-4c54-bba0-41aa27f71d80",
       "name": "HTTP - Claim e Drain Atômico",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
-        540
+        1120,
+        352
       ],
       "onError": "continueRegularOutput"
     },
@@ -535,7 +533,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -551,18 +551,17 @@
         },
         "options": {}
       },
-      "id": "n-if-claim",
+      "id": "2092d6c8-10a4-491b-ba34-0cb89da7b441",
       "name": "IF - Claim Confirmado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1260,
-        540
+        1344,
+        352
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -575,26 +574,26 @@
         },
         "options": {}
       },
-      "id": "n-outro-fluxo",
+      "id": "8a64baa7-3dcd-4c4b-8ab0-8a5901545d53",
       "name": "Encerrar - Outro Fluxo Assumiu",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1480,
-        360
+        1568,
+        160
       ]
     },
     {
       "parameters": {
         "jsCode": "// Parseia e ordena o buffer por received_at. Identidade por message_id\n// (nunca por texto). Item invalido (JSON quebrado/sem campos) e' filtrado.\nconst raw = $json.items ?? $json.result ?? [];\nconst items = Array.isArray(raw) ? raw : [];\nconst parsed = items.map(i => {\n  if (typeof i === 'string') { try { return JSON.parse(i); } catch { return null; } }\n  return i;\n}).filter(i => i && typeof i.message_id === 'string' && typeof i.message === 'string' && i.message.trim() !== '');\nparsed.sort((a,b) => {\n  const ta = Date.parse(a.received_at), tb = Date.parse(b.received_at);\n  if (!Number.isNaN(ta) && !Number.isNaN(tb) && ta !== tb) return ta - tb;\n  return String(a.buffered_at ?? '').localeCompare(String(b.buffered_at ?? ''));\n});\nconst messages = parsed.map(i => String(i.message).trim());\nreturn [{ json: {\n  ...$json,\n  buffer_claimed: true,\n  buffered_messages: parsed,\n  buffered_message_ids: parsed.map(i => i.message_id),\n  buffer_count: parsed.length,\n  buffer_total_characters: messages.reduce((t,m) => t + m.length, 0),\n  buffer_started_at: parsed[0]?.received_at ?? null,\n  buffer_ended_at: parsed[parsed.length-1]?.received_at ?? null,\n} }];"
       },
-      "id": "n-code-parse",
+      "id": "ce756fe2-9f3c-4f15-8b14-29fb17fca16f",
       "name": "Code - Parsear e Ordenar Buffer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1480,
-        540
+        1568,
+        352
       ]
     },
     {
@@ -602,7 +601,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -626,19 +627,17 @@
         },
         "options": {}
       },
-      "id": "n-if-limites",
+      "id": "d5e3a61e-7013-4244-b16d-b2b5fde24ab9",
       "name": "IF - Buffer Dentro dos Limites?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1700,
-        540
+        1792,
+        352
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
@@ -661,21 +660,20 @@
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-limite",
+      "id": "df62a9ba-0104-4ed9-a1e7-f3a505e9f5d7",
       "name": "Set - Limite Excedido",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1920,
-        360
+        2000,
+        160
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
@@ -701,27 +699,36 @@
               "name": "processing_status",
               "value": "ok",
               "type": "string"
+            },
+            {
+              "id": "co5",
+              "name": "instance_name",
+              "value": "={{ $('Set - Preparar Chaves do Buffer').first().json.instance_name }}",
+              "type": "string"
+            },
+            {
+              "id": "co6",
+              "name": "chat_id",
+              "value": "={{ $('Set - Preparar Chaves do Buffer').first().json.chat_id }}",
+              "type": "string"
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-consolidar",
+      "id": "766fe620-d44e-4e7d-8003-15148352bfc7",
       "name": "Set - Consolidar Mensagens",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1920,
-        620
+        2000,
+        432
       ]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/control",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -730,15 +737,18 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-revalidar",
+      "id": "eae31c07-fe7f-4de0-92d2-2c9be686de8e",
       "name": "HTTP - Revalidar Human Takeover",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2140,
-        620
+        2224,
+        432
       ],
       "onError": "continueRegularOutput"
     },
@@ -747,7 +757,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -763,19 +775,17 @@
         },
         "options": {}
       },
-      "id": "n-if-liberada",
+      "id": "0ebda4c1-dac5-4a92-be36-89348eed44a0",
       "name": "IF - IA Continua Liberada?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2360,
-        620
+        2448,
+        432
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
@@ -804,27 +814,22 @@
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-bloqueado",
+      "id": "dab0d5c8-e772-4203-91b5-76330b08a518",
       "name": "Set - Bloqueado",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2580,
-        440
+        2672,
+        240
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/checkpoint",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, owner_message_id: $json.message_id, message_ids: $json.buffered_message_ids, consolidated_message: $json.message, message_count: $json.buffer_count } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -833,15 +838,21 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $('Set - Consolidar Mensagens').first().json.instance_name, chat_id: $('Set - Consolidar Mensagens').first().json.chat_id, owner_message_id: $('Set - Consolidar Mensagens').first().json.owner_message_id, message_ids: $('Set - Consolidar Mensagens').first().json.buffered_message_ids, consolidated_message: $('Set - Consolidar Mensagens').first().json.message, message_count: $('Set - Consolidar Mensagens').first().json.buffer_count } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-checkpoint",
+      "id": "bf15d106-04ae-46e4-b4c2-af3222d33e46",
       "name": "HTTP - Persistir Checkpoint",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2580,
-        700
+        2672,
+        512
       ],
       "onError": "continueRegularOutput"
     },
@@ -849,12 +860,6 @@
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/buffer/ack",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -863,22 +868,26 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $('Set - Consolidar Mensagens').first().json.instance_name, chat_id: $('Set - Consolidar Mensagens').first().json.chat_id, message_id: $('Set - Consolidar Mensagens').first().json.owner_message_id } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-ack",
+      "id": "293689a4-9b42-4343-b88b-27354c22a93f",
       "name": "HTTP - ACK Processing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2800,
-        700
+        2880,
+        512
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
@@ -898,18 +907,73 @@
               "name": "flow_action",
               "value": "continue_to_buffer",
               "type": "string"
+            },
+            {
+              "id": "sa4",
+              "name": "instance_name",
+              "value": "={{ $('Set - Preparar Chaves do Buffer').first().json.instance_name }}",
+              "type": "string"
+            },
+            {
+              "id": "sa5",
+              "name": "chat_id",
+              "value": "={{ $('Set - Preparar Chaves do Buffer').first().json.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "sa6",
+              "name": "message",
+              "value": "={{ $('Set - Consolidar Mensagens').first().json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "sa7",
+              "name": "content",
+              "value": "={{ $('Set - Consolidar Mensagens').first().json.content }}",
+              "type": "string"
+            },
+            {
+              "id": "sa8",
+              "name": "message_id",
+              "value": "={{ $('Set - Consolidar Mensagens').first().json.owner_message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "sa9",
+              "name": "buffered_message_ids",
+              "value": "={{ $('Set - Consolidar Mensagens').first().json.buffered_message_ids }}",
+              "type": "array"
+            },
+            {
+              "id": "sa10",
+              "name": "control_version",
+              "value": "={{ $('HTTP - Revalidar Human Takeover').first().json.control_version ?? 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "sa11",
+              "name": "human_takeover",
+              "value": "={{ $('HTTP - Revalidar Human Takeover').first().json.human_takeover ?? false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "sa12",
+              "name": "processing_status",
+              "value": "ok",
+              "type": "string"
             }
           ]
         },
+        "includeOtherFields": false,
         "options": {}
       },
-      "id": "n-saida",
+      "id": "60be2a8f-b7b3-48b1-b006-652e01a9df94",
       "name": "Set - Saída para Módulo de IA",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        3020,
-        700
+        3104,
+        512
       ]
     },
     {
@@ -932,15 +996,15 @@
           "timeout": 30000
         }
       },
-      "onError": "continueRegularOutput",
-      "id": "node-fwd-m04",
+      "id": "bfedd449-0099-4bcc-8fe2-09b90bfafe78",
       "name": "HTTP - Encaminhar para Módulo 04",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3220,
-        700
-      ]
+        3312,
+        512
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -1225,20 +1289,9 @@
       ]
     }
   },
-  "active": false,
   "settings": {
-    "executionOrder": "v1"
-  },
-  "pinData": {},
-  "meta": {
-    "templateId": "whatjuris-modulo-03"
-  },
-  "tags": [
-    {
-      "name": "whatjuris"
-    },
-    {
-      "name": "modulo-03"
-    }
-  ]
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
 }

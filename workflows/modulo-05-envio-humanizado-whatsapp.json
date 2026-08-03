@@ -5,17 +5,15 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "modulo-05-envio",
-        "responseMode": "onReceived",
-        "options": {},
-        "responseData": "firstEntryJson"
+        "options": {}
       },
-      "id": "n-entrada",
+      "id": "49c60f4a-d45c-4c9c-8c8a-02d41c6132c5",
       "name": "Entrada - Módulo 4 (Webhook Interno)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -1600,
-        400
+        -1760,
+        208
       ],
       "webhookId": "modulo-05-envio"
     },
@@ -24,7 +22,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -56,18 +56,17 @@
         },
         "options": {}
       },
-      "id": "n-if-autorizada",
+      "id": "1dea6282-9222-4183-b076-197360e9d083",
       "name": "IF - Resposta Autorizada?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1380,
-        400
+        -1536,
+        208
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -80,19 +79,17 @@
         },
         "options": {}
       },
-      "id": "n-encerrar",
+      "id": "162e7a9e-ea30-46e5-8b3d-010b6c593e46",
       "name": "Set - Encerrar Sem Envio",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1160,
-        600
+        -1328,
+        400
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
@@ -133,24 +130,21 @@
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-normalizar",
+      "id": "3f7ecf46-f2e0-4326-88fd-f2b8a09aa73c",
       "name": "Set - Normalizar Entrada",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1160,
-        380
+        -1328,
+        192
       ]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/control",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -159,15 +153,18 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-revalidar",
+      "id": "45bfc65b-3157-40ba-97cd-2fc17652fdc5",
       "name": "HTTP - Revalidar Human Takeover",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -940,
-        380
+        -1104,
+        192
       ],
       "onError": "continueRegularOutput"
     },
@@ -176,7 +173,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -192,18 +191,17 @@
         },
         "options": {}
       },
-      "id": "n-if-continua",
+      "id": "e8a9e5bb-ade8-4e2d-a1f5-af9e964a8e85",
       "name": "IF - Continua Autorizado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -720,
-        380
+        -880,
+        192
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -216,19 +214,17 @@
         },
         "options": {}
       },
-      "id": "n-descartada",
+      "id": "64f2aebe-e00e-4d82-b5c1-c3eda79829e2",
       "name": "Set - Resposta Descartada",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -500,
-        560
+        -656,
+        368
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
@@ -239,15 +235,16 @@
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-dividir",
+      "id": "d1b6c9df-90f0-4e1c-bbef-014f3c8e47c6",
       "name": "Set - Dividir Mensagens",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -500,
-        380
+        -656,
+        192
       ]
     },
     {
@@ -257,36 +254,31 @@
           "destinationFieldName": "fragment"
         }
       },
-      "id": "n-split",
+      "id": "a5638249-b5d0-49d8-b1f3-d0a580710ba5",
       "name": "Split Out - Fragmentos",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -280,
-        380
+        -448,
+        192
       ]
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
-      "id": "n-loop",
+      "id": "931091ba-21b4-4e37-aef7-cb0cf98bf823",
       "name": "Loop Over Items",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -60,
-        380
+        -224,
+        192
       ]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $('Set - Normalizar Entrada').item.json.instance_name }}/{{ $('Set - Normalizar Entrada').item.json.chat_id }}/control",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -295,15 +287,18 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-revalidar-frag",
+      "id": "fbeb6f30-6c3b-46aa-9333-af47d0d5a9e7",
       "name": "HTTP - Revalidar Antes do Fragmento",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        160,
-        460
+        0,
+        272
       ],
       "onError": "continueRegularOutput"
     },
@@ -312,7 +307,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -328,25 +325,19 @@
         },
         "options": {}
       },
-      "id": "n-if-frag-auth",
+      "id": "d2dbf484-12d6-41f2-8e84-0124218b6926",
       "name": "IF - Fragmento Autorizado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        380,
-        460
+        224,
+        272
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/outbound-fragments/cancel-remaining",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $('Set - Normalizar Entrada').item.json.instance_name, chat_id: $('Set - Normalizar Entrada').item.json.chat_id, response_id: $('Set - Normalizar Entrada').item.json.response_id, from_index: $json.fragment.index, reason: 'human_takeover' } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -355,21 +346,26 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $('Set - Normalizar Entrada').item.json.instance_name, chat_id: $('Set - Normalizar Entrada').item.json.chat_id, response_id: $('Set - Normalizar Entrada').item.json.response_id, from_index: $json.fragment.index, reason: 'human_takeover' } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-cancel",
+      "id": "620e6f13-2a79-41fc-b94b-4cf378376d69",
       "name": "HTTP - Cancelar Fragmentos Restantes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        600,
-        640
+        448,
+        448
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -382,25 +378,19 @@
         },
         "options": {}
       },
-      "id": "n-loop-cancelado",
+      "id": "31ee76c6-d4bb-4ecf-ac58-9b5d81db245b",
       "name": "Set - Loop Cancelado",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        820,
-        640
+        672,
+        448
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/outbound-fragments/reserve",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $('Set - Normalizar Entrada').item.json.instance_name, chat_id: $('Set - Normalizar Entrada').item.json.chat_id, response_id: $('Set - Normalizar Entrada').item.json.response_id, source_message_id: $('Set - Normalizar Entrada').item.json.message_id, fragment_id: $json.fragment.fragment_id, fragment_index: $json.fragment.index, fragment_total: $json.fragment.total, content: $json.fragment.text, expected_control_version: $('Set - Normalizar Entrada').item.json.expected_control_version } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -409,15 +399,21 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $('Set - Normalizar Entrada').item.json.instance_name, chat_id: $('Set - Normalizar Entrada').item.json.chat_id, response_id: $('Set - Normalizar Entrada').item.json.response_id, source_message_id: $('Set - Normalizar Entrada').item.json.message_id, fragment_id: $('Loop Over Items').item.json.fragment.fragment_id, fragment_index: $('Loop Over Items').item.json.fragment.index, fragment_total: $('Loop Over Items').item.json.fragment.total, content: $('Loop Over Items').item.json.fragment.text, expected_control_version: $('Set - Normalizar Entrada').item.json.expected_control_version } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-reserve",
+      "id": "23e2c2d3-4ac2-4dcc-b2c8-0e1b1baa1549",
       "name": "HTTP - Reservar Fragmento",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        600,
-        380
+        448,
+        192
       ],
       "onError": "continueRegularOutput"
     },
@@ -426,7 +422,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -442,18 +440,17 @@
         },
         "options": {}
       },
-      "id": "n-if-deve-enviar",
+      "id": "c906e77a-2608-45bf-be00-6432014ca975",
       "name": "IF - Deve Enviar?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        820,
-        380
+        672,
+        192
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -466,48 +463,52 @@
         },
         "options": {}
       },
-      "id": "n-pulado",
+      "id": "62984610-0128-4c0b-af9f-9c8fd4c96a78",
       "name": "Set - Fragmento Pulado",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1040,
-        200
+        880,
+        0
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://graph.facebook.com/v21.0/SEU_PHONE_NUMBER_ID/messages",
+        "url": "https://graph.facebook.com/v21.0/1196691023534009/messages",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "genericAuthType": "httpBearerAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { messaging_product: 'whatsapp', recipient_type: 'individual', to: String($('Set - Normalizar Entrada').item.json.chat_id).replace(/[^0-9]/g,''), type: 'text', text: { preview_url: false, body: $('Loop Over Items').item.json.fragment.text } } }}",
         "options": {
-          "timeout": 15000,
           "response": {
             "response": {
               "neverError": true
             }
-          }
+          },
+          "timeout": 15000
         }
       },
-      "id": "n-meta",
+      "id": "9d8298b4-ae0e-4587-b1f0-a65aa85a9195",
       "name": "HTTP - Meta Enviar Texto",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
-        460
+        880,
+        272
       ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "credentials": {
         "httpHeaderAuth": {
-          "id": "REPLACE_IN_N8N",
-          "name": "Meta WhatsApp Token"
+          "id": "q1c4NDFJx3nJANfr",
+          "name": "Header Auth account"
+        },
+        "httpBearerAuth": {
+          "id": "ZJFD7cI2bTEwzeqO",
+          "name": "Bearer Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -517,7 +518,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -533,18 +536,17 @@
         },
         "options": {}
       },
-      "id": "n-if-meta-confirmou",
+      "id": "c5ce0cc1-5ce7-4b3c-9944-136e6aca6efe",
       "name": "IF - Meta Confirmou?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1260,
-        460
+        1104,
+        272
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -557,25 +559,19 @@
         },
         "options": {}
       },
-      "id": "n-erro-envio",
+      "id": "5838321e-4e76-40eb-b2a8-5184b51f5aa6",
       "name": "Set - Erro de Envio",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1480,
-        640
+        1328,
+        448
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/outbound-fragments/{{ $('HTTP - Reservar Fragmento').item.json.reservation_id }}/confirm",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { meta_message_id: $('HTTP - Meta Enviar Texto').item.json.messages[0].id, sent_at: $now.toISO(), chat_id: $('Set - Normalizar Entrada').item.json.chat_id, instance_name: $('Set - Normalizar Entrada').item.json.instance_name, content: $('Loop Over Items').item.json.fragment.text, source_message_id: $('Set - Normalizar Entrada').item.json.message_id } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -584,15 +580,21 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { meta_message_id: $('HTTP - Meta Enviar Texto').item.json.messages[0].id, sent_at: $now.toISO(), chat_id: $('Set - Normalizar Entrada').item.json.chat_id, instance_name: $('Set - Normalizar Entrada').item.json.instance_name, content: $('Loop Over Items').item.json.fragment.text, source_message_id: $('Set - Normalizar Entrada').item.json.message_id } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "n-confirmar",
+      "id": "7509238e-0d63-48f4-9d0e-d00e193330c2",
       "name": "HTTP - Confirmar Fragmento no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1480,
-        460
+        1328,
+        272
       ],
       "onError": "continueRegularOutput"
     },
@@ -601,7 +603,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -617,18 +621,17 @@
         },
         "options": {}
       },
-      "id": "n-if-proximo",
+      "id": "ff456102-6f4f-4a79-a0dd-69d358c5b435",
       "name": "IF - Existe Próximo Fragmento?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1700,
-        460
+        1552,
+        272
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -641,33 +644,31 @@
         },
         "options": {}
       },
-      "id": "n-delay",
+      "id": "721d4335-4123-41e2-82b5-dd8d66173e3e",
       "name": "Set - Calcular Delay",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1920,
-        360
+        1760,
+        160
       ]
     },
     {
       "parameters": {
-        "amount": "={{ $json.typing_delay_seconds }}",
-        "unit": "seconds"
+        "amount": "={{ $json.typing_delay_seconds }}"
       },
-      "id": "n-wait",
+      "id": "ee66cbd3-a1db-4eee-ac9f-b6198627ae5e",
       "name": "Wait - Simular Digitação",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2140,
-        360
+        1984,
+        160
       ],
       "webhookId": "modulo-05-wait"
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -680,13 +681,13 @@
         },
         "options": {}
       },
-      "id": "n-concluido",
+      "id": "87339170-8405-4384-8d4c-5e0d9856d0ee",
       "name": "Set - Envio Concluído",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        160,
-        200
+        0,
+        0
       ]
     }
   ],
@@ -961,20 +962,9 @@
       ]
     }
   },
-  "active": false,
   "settings": {
-    "executionOrder": "v1"
-  },
-  "pinData": {},
-  "meta": {
-    "templateId": "whatjuris-modulo-05"
-  },
-  "tags": [
-    {
-      "name": "whatjuris"
-    },
-    {
-      "name": "modulo-05"
-    }
-  ]
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
 }

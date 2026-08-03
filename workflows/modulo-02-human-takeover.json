@@ -5,23 +5,20 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "modulo-02-human-takeover",
-        "responseMode": "onReceived",
-        "options": {},
-        "responseData": "firstEntryJson"
+        "options": {}
       },
-      "id": "node-entrada",
+      "id": "5e81a277-2e73-431f-a802-62d54d557a34",
       "name": "Entrada - Módulo 1 (Webhook Interno)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -1180,
-        320
+        -1360,
+        272
       ],
       "webhookId": "modulo-02-human-takeover"
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -64,25 +61,19 @@
         },
         "options": {}
       },
-      "id": "node-sanitizar",
+      "id": "a85d39fa-81f4-43e1-b014-956dd853ed26",
       "name": "Set - Preparar e Sanitizar Entrada",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -960,
-        320
+        -1136,
+        272
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/conversations/outbound-check",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $json.instance_name, message_id: $json.message_id } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -91,21 +82,26 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $json.instance_name, message_id: $json.message_id } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "node-outbound-check",
+      "id": "2e1415f1-311e-4767-9b26-ac460103e4b5",
       "name": "HTTP - Verificar Registro Outbound IA",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -740,
-        320
+        -928,
+        272
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -119,13 +115,13 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "node-resolver-origem",
+      "id": "a0fdf0b4-8160-49b2-8b45-91458182db0e",
       "name": "Set - Resolver Origem da Mensagem",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -520,
-        320
+        -704,
+        272
       ]
     },
     {
@@ -133,7 +129,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -149,13 +147,13 @@
         },
         "options": {}
       },
-      "id": "node-if-fromme",
+      "id": "e1ed0a78-c157-4248-bea3-3fcbb1dc269f",
       "name": "IF - from_me é true?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -300,
-        320
+        -480,
+        272
       ]
     },
     {
@@ -163,7 +161,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -179,25 +179,19 @@
         },
         "options": {}
       },
-      "id": "node-if-ai",
+      "id": "67095b68-56b2-4445-9112-b4f317d3e90c",
       "name": "IF - Origem é IA?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -60,
-        180
+        -240,
+        128
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/conversations/message",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id, message: $json.message, sender_origin: 'ai' } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -206,21 +200,26 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $json.instance_name, chat_id: $json.chat_id, message_id: $json.message_id, message: $json.message, sender_origin: 'ai' } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "node-persistir-ai",
+      "id": "bd476249-735f-4d1c-82ec-166a900dafbd",
       "name": "HTTP - Persistir Mensagem da IA no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        180,
-        60
+        0,
+        0
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -251,25 +250,19 @@
         },
         "options": {}
       },
-      "id": "node-saida-ai",
+      "id": "d1f23441-5845-4f5b-a0e5-b1d1e996397f",
       "name": "Set - Saída: IA",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        400,
-        60
+        224,
+        0
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/takeover",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { source: 'human_mobile', message_id: $json.message_id } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -278,15 +271,21 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { source: 'human_mobile', message_id: $json.message_id } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "node-ativar-takeover",
+      "id": "330424da-8511-4049-b3d9-25512597e507",
       "name": "HTTP - Ativar Takeover no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        180,
-        260
+        0,
+        208
       ],
       "onError": "continueRegularOutput"
     },
@@ -294,12 +293,6 @@
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/conversations/message",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $('Set - Resolver Origem da Mensagem').item.json.instance_name, chat_id: $('Set - Resolver Origem da Mensagem').item.json.chat_id, message_id: $('Set - Resolver Origem da Mensagem').item.json.message_id, message: $('Set - Resolver Origem da Mensagem').item.json.message, sender_origin: 'human_mobile' } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -308,21 +301,26 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $('Set - Resolver Origem da Mensagem').item.json.instance_name, chat_id: $('Set - Resolver Origem da Mensagem').item.json.chat_id, message_id: $('Set - Resolver Origem da Mensagem').item.json.message_id, message: $('Set - Resolver Origem da Mensagem').item.json.message, sender_origin: 'human_mobile' } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "node-persistir-humano",
+      "id": "c048bd31-6622-4ad5-818b-ec95c3e104c1",
       "name": "HTTP - Persistir Mensagem Humana no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        400,
-        260
+        224,
+        208
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -371,22 +369,18 @@
         },
         "options": {}
       },
-      "id": "node-saida-humano",
+      "id": "2f133c44-bf3d-4452-89a3-722d60d83ed8",
       "name": "Set - Saída: Controle Humano",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        620,
-        260
+        448,
+        208
       ]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/control",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -395,15 +389,18 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "node-consultar-controle",
+      "id": "edee5435-99fd-4b78-91ec-6712917c66dd",
       "name": "HTTP - Confirmar Controle no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -60,
-        460
+        -240,
+        400
       ],
       "onError": "continueRegularOutput"
     },
@@ -412,7 +409,9 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -428,25 +427,19 @@
         },
         "options": {}
       },
-      "id": "node-if-bloqueado",
+      "id": "199ed4a3-e494-4be7-b413-9ec3a46d8973",
       "name": "IF - Banco indica bloqueio?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        180,
-        460
+        0,
+        400
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://whatjuris-crm.onrender.com/api/internal/conversations/message",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { instance_name: $('Set - Resolver Origem da Mensagem').item.json.instance_name, chat_id: $('Set - Resolver Origem da Mensagem').item.json.chat_id, message_id: $('Set - Resolver Origem da Mensagem').item.json.message_id, message: $('Set - Resolver Origem da Mensagem').item.json.message, sender_origin: 'client' } }}",
-        "options": {
-          "timeout": 10000
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -455,21 +448,26 @@
               "value": "={{ $env.WEBHOOK_SECRET }}"
             }
           ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { instance_name: $('Set - Resolver Origem da Mensagem').item.json.instance_name, chat_id: $('Set - Resolver Origem da Mensagem').item.json.chat_id, message_id: $('Set - Resolver Origem da Mensagem').item.json.message_id, message: $('Set - Resolver Origem da Mensagem').item.json.message, sender_origin: 'client' } }}",
+        "options": {
+          "timeout": 10000
         }
       },
-      "id": "node-persistir-cliente",
+      "id": "170b0960-62b0-400e-89c7-2ffc94f72646",
       "name": "HTTP - Persistir Mensagem Cliente no CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        400,
-        400
+        224,
+        352
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -500,18 +498,17 @@
         },
         "options": {}
       },
-      "id": "node-saida-aguardando",
+      "id": "3c7ee258-b638-49e1-8381-e706fd6e7c5a",
       "name": "Set - Saída: Aguardando Humano",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        620,
-        400
+        448,
+        352
       ]
     },
     {
       "parameters": {
-        "mode": "manual",
         "assignments": {
           "assignments": [
             {
@@ -590,13 +587,13 @@
         },
         "options": {}
       },
-      "id": "node-liberar-ia",
+      "id": "1efe3956-f018-4030-917f-d1c30fc1e593",
       "name": "Set - Liberar para Buffer/IA",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        400,
-        560
+        224,
+        512
       ]
     },
     {
@@ -619,15 +616,15 @@
           "timeout": 30000
         }
       },
-      "onError": "continueRegularOutput",
-      "id": "node-fwd-m03",
+      "id": "e3077a53-2f75-4905-ac48-0a828b4f29b1",
       "name": "HTTP - Encaminhar para Módulo 03",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        600,
-        560
-      ]
+        432,
+        512
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -807,20 +804,9 @@
       ]
     }
   },
-  "active": false,
   "settings": {
-    "executionOrder": "v1"
-  },
-  "pinData": {},
-  "meta": {
-    "templateId": "whatjuris-modulo-02"
-  },
-  "tags": [
-    {
-      "name": "whatjuris"
-    },
-    {
-      "name": "modulo-02"
-    }
-  ]
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
 }
