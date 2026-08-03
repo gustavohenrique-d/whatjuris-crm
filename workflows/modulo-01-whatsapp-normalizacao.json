@@ -5,8 +5,9 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "modulo-01-recepcao",
-        "responseMode": "lastNode",
-        "options": {}
+        "responseMode": "onReceived",
+        "options": {},
+        "responseData": "firstEntryJson"
       },
       "id": "node-webhook-receber",
       "name": "Webhook - Receber do Backend WhatJuris",
@@ -791,7 +792,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 30000
         }
       },
       "onError": "continueRegularOutput",

@@ -5,8 +5,9 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "modulo-05-envio",
-        "responseMode": "lastNode",
-        "options": {}
+        "responseMode": "onReceived",
+        "options": {},
+        "responseData": "firstEntryJson"
       },
       "id": "n-entrada",
       "name": "Entrada - Módulo 4 (Webhook Interno)",

@@ -5,8 +5,9 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "modulo-03-buffer-mensagens",
-        "responseMode": "lastNode",
-        "options": {}
+        "responseMode": "onReceived",
+        "options": {},
+        "responseData": "firstEntryJson"
       },
       "id": "n-entrada",
       "name": "Entrada - Módulo 2 (Webhook Interno)",
@@ -928,7 +929,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 30000
         }
       },
       "onError": "continueRegularOutput",

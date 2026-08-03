@@ -5,8 +5,9 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "modulo-04-triagem",
-        "responseMode": "lastNode",
-        "options": {}
+        "responseMode": "onReceived",
+        "options": {},
+        "responseData": "firstEntryJson"
       },
       "id": "n-entrada",
       "name": "Entrada - Módulo 3 (Webhook Interno)",
@@ -704,7 +705,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 30000
         }
       },
       "onError": "continueRegularOutput",

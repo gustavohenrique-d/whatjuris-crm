@@ -5,8 +5,9 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "modulo-02-human-takeover",
-        "responseMode": "lastNode",
-        "options": {}
+        "responseMode": "onReceived",
+        "options": {},
+        "responseData": "firstEntryJson"
       },
       "id": "node-entrada",
       "name": "Entrada - Módulo 1 (Webhook Interno)",
@@ -615,7 +616,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 30000
         }
       },
       "onError": "continueRegularOutput",
