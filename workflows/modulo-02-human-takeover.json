@@ -548,6 +548,42 @@
               "name": "control_version",
               "value": "={{ $json.control_version ?? 0 }}",
               "type": "number"
+            },
+            {
+              "id": "lc-inst",
+              "name": "instance_name",
+              "value": "={{ $('Set - Preparar e Sanitizar Entrada').item.json.instance_name }}",
+              "type": "string"
+            },
+            {
+              "id": "lc-chat",
+              "name": "chat_id",
+              "value": "={{ $('Set - Preparar e Sanitizar Entrada').item.json.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "lc-mid",
+              "name": "message_id",
+              "value": "={{ $('Set - Preparar e Sanitizar Entrada').item.json.message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "lc-msg",
+              "name": "message",
+              "value": "={{ $('Set - Preparar e Sanitizar Entrada').item.json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "lc-recv",
+              "name": "received_at",
+              "value": "={{ $('Set - Preparar e Sanitizar Entrada').item.json.received_at }}",
+              "type": "string"
+            },
+            {
+              "id": "lc-fm",
+              "name": "from_me",
+              "value": "={{ false }}",
+              "type": "boolean"
             }
           ]
         },
