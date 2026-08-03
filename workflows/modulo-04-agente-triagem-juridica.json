@@ -686,6 +686,36 @@
         1520,
         540
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-production-691d.up.railway.app/webhook/modulo-05-envio",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "node-fwd-m05",
+      "name": "HTTP - Encaminhar para Módulo 05",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        540
+      ]
     }
   ],
   "connections": {
@@ -883,6 +913,17 @@
         [
           {
             "node": "Set - Descartar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Saída para WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Encaminhar para Módulo 05",
             "type": "main",
             "index": 0
           }

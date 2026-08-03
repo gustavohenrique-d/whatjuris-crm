@@ -910,6 +910,36 @@
         3020,
         700
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-production-691d.up.railway.app/webhook/modulo-04-triagem",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "node-fwd-m04",
+      "name": "HTTP - Encaminhar para Módulo 04",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3220,
+        700
+      ]
     }
   ],
   "connections": {
@@ -1176,6 +1206,17 @@
         [
           {
             "node": "Set - Saída para Módulo de IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Saída para Módulo de IA": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Encaminhar para Módulo 04",
             "type": "main",
             "index": 0
           }

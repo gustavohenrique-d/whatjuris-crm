@@ -12,19 +12,28 @@
       "name": "Webhook - Receber do Backend WhatJuris",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1120, 300],
+      "position": [
+        -1120,
+        300
+      ],
       "webhookId": "modulo-01-recepcao"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
           "combinator": "and",
           "conditions": [
             {
               "leftValue": "={{ $json.headers['x-webhook-secret'] }}",
               "rightValue": "={{ $env.WEBHOOK_SECRET }}",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ]
         },
@@ -34,7 +43,10 @@
       "name": "Validar Secret Interno",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [-900, 300]
+      "position": [
+        -900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -44,26 +56,94 @@
       "name": "Expandir Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-680, 240]
+      "position": [
+        -680,
+        240
+      ]
     },
     {
       "parameters": {
         "mode": "manual",
         "assignments": {
           "assignments": [
-            { "id": "a1", "name": "instance_name", "value": "={{ $env.WHATSAPP_INSTANCE_NAME || $json.value.metadata.phone_number_id }}", "type": "string" },
-            { "id": "a2", "name": "chat_id", "value": "={{ $json.msg.from || $json.value.contacts?.[0]?.wa_id }}", "type": "string" },
-            { "id": "a3", "name": "from_me", "value": "={{ false }}", "type": "boolean" },
-            { "id": "a4", "name": "message_id", "value": "={{ $json.msg.id }}", "type": "string" },
-            { "id": "a5", "name": "raw_message_type", "value": "={{ $json.msg.type }}", "type": "string" },
-            { "id": "a6", "name": "message_type", "value": "={{ ({text:'conversation',audio:'audio message',audioMessage:'audio message',image:'image message',imageMessage:'image message'})[$json.msg.type] || 'unsupported' }}", "type": "string" },
-            { "id": "a7", "name": "content", "value": "={{ $json.msg.text?.body || $json.msg.image?.caption || '' }}", "type": "string" },
-            { "id": "a8", "name": "media_id", "value": "={{ $json.msg.audio?.id || $json.msg.image?.id || null }}", "type": "string" },
-            { "id": "a9", "name": "media_mime_type", "value": "={{ $json.msg.audio?.mime_type || $json.msg.image?.mime_type || null }}", "type": "string" },
-            { "id": "a10", "name": "received_at", "value": "={{ new Date(Number($json.msg.timestamp) * 1000).toISOString() }}", "type": "string" },
-            { "id": "a11", "name": "message", "value": "", "type": "string" },
-            { "id": "a12", "name": "processing_status", "value": "ok", "type": "string" },
-            { "id": "a13", "name": "processing_error", "value": "={{ null }}", "type": "string" }
+            {
+              "id": "a1",
+              "name": "instance_name",
+              "value": "={{ $env.WHATSAPP_INSTANCE_NAME || $json.value.metadata.phone_number_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "chat_id",
+              "value": "={{ $json.msg.from || $json.value.contacts?.[0]?.wa_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "from_me",
+              "value": "={{ false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "a4",
+              "name": "message_id",
+              "value": "={{ $json.msg.id }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "raw_message_type",
+              "value": "={{ $json.msg.type }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "message_type",
+              "value": "={{ ({text:'conversation',audio:'audio message',audioMessage:'audio message',image:'image message',imageMessage:'image message'})[$json.msg.type] || 'unsupported' }}",
+              "type": "string"
+            },
+            {
+              "id": "a7",
+              "name": "content",
+              "value": "={{ $json.msg.text?.body || $json.msg.image?.caption || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a8",
+              "name": "media_id",
+              "value": "={{ $json.msg.audio?.id || $json.msg.image?.id || null }}",
+              "type": "string"
+            },
+            {
+              "id": "a9",
+              "name": "media_mime_type",
+              "value": "={{ $json.msg.audio?.mime_type || $json.msg.image?.mime_type || null }}",
+              "type": "string"
+            },
+            {
+              "id": "a10",
+              "name": "received_at",
+              "value": "={{ new Date(Number($json.msg.timestamp) * 1000).toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "a11",
+              "name": "message",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "a12",
+              "name": "processing_status",
+              "value": "ok",
+              "type": "string"
+            },
+            {
+              "id": "a13",
+              "name": "processing_error",
+              "value": "={{ null }}",
+              "type": "string"
+            }
           ]
         },
         "options": {}
@@ -72,15 +152,28 @@
       "name": "Set - Normalizar Variáveis",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [-460, 240]
+      "position": [
+        -460,
+        240
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
           "combinator": "and",
           "conditions": [
-            { "leftValue": "={{ $json.message_id }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }
+            {
+              "leftValue": "={{ $json.message_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
           ]
         },
         "options": {}
@@ -89,7 +182,10 @@
       "name": "Filtrar Eventos de Mensagem",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2,
-      "position": [-240, 240]
+      "position": [
+        -240,
+        240
+      ]
     },
     {
       "parameters": {
@@ -98,28 +194,51 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-webhook-secret", "value": "={{ $env.WEBHOOK_SECRET }}" }
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { messageId: $json.message_id } }}",
-        "options": { "timeout": 10000, "response": { "response": { "neverError": true } } }
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
       },
       "onError": "continueRegularOutput",
       "id": "node-idempotencia",
       "name": "Verificar Idempotência (PostgreSQL)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-20, 240]
+      "position": [
+        -20,
+        240
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
           "combinator": "and",
           "conditions": [
-            { "leftValue": "={{ $json.isDuplicate }}", "rightValue": "={{ true }}", "operator": { "type": "boolean", "operation": "equals" } }
+            {
+              "leftValue": "={{ $json.isDuplicate }}",
+              "rightValue": "={{ true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
           ]
         },
         "options": {}
@@ -128,68 +247,192 @@
       "name": "IF - Mensagem Enviada pelo Sistema?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [200, 240]
+      "position": [
+        200,
+        240
+      ]
     },
     {
       "parameters": {
         "rules": {
           "values": [
-            { "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and", "conditions": [ { "leftValue": "={{ $node['Set - Normalizar Variáveis'].json.message_type }}", "rightValue": "conversation", "operator": { "type": "string", "operation": "equals" } } ] }, "outputKey": "conversation" },
-            { "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and", "conditions": [ { "leftValue": "={{ $node['Set - Normalizar Variáveis'].json.message_type }}", "rightValue": "audio message", "operator": { "type": "string", "operation": "equals" } } ] }, "outputKey": "audio message" },
-            { "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and", "conditions": [ { "leftValue": "={{ $node['Set - Normalizar Variáveis'].json.message_type }}", "rightValue": "image message", "operator": { "type": "string", "operation": "equals" } } ] }, "outputKey": "image message" }
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "loose"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $node['Set - Normalizar Variáveis'].json.message_type }}",
+                    "rightValue": "conversation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "conversation"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "loose"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $node['Set - Normalizar Variáveis'].json.message_type }}",
+                    "rightValue": "audio message",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "audio message"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "loose"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $node['Set - Normalizar Variáveis'].json.message_type }}",
+                    "rightValue": "image message",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "image message"
+            }
           ]
         },
-        "options": { "fallbackOutput": "extra" }
+        "options": {
+          "fallbackOutput": "extra"
+        }
       },
       "id": "node-switch-tipo",
       "name": "Switch - Tipo da Mensagem",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [420, 240]
+      "position": [
+        420,
+        240
+      ]
     },
     {
       "parameters": {
         "mode": "manual",
-        "assignments": { "assignments": [
-          { "id": "t1", "name": "message", "value": "={{ ($node['Set - Normalizar Variáveis'].json.content || '').trim() }}", "type": "string" },
-          { "id": "t2", "name": "processing_status", "value": "={{ ($node['Set - Normalizar Variáveis'].json.content || '').trim() === '' ? 'error' : 'ok' }}", "type": "string" },
-          { "id": "t3", "name": "processing_error", "value": "={{ ($node['Set - Normalizar Variáveis'].json.content || '').trim() === '' ? 'EMPTY_TEXT_MESSAGE' : null }}", "type": "string" }
-        ] },
+        "assignments": {
+          "assignments": [
+            {
+              "id": "t1",
+              "name": "message",
+              "value": "={{ ($node['Set - Normalizar Variáveis'].json.content || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "t2",
+              "name": "processing_status",
+              "value": "={{ ($node['Set - Normalizar Variáveis'].json.content || '').trim() === '' ? 'error' : 'ok' }}",
+              "type": "string"
+            },
+            {
+              "id": "t3",
+              "name": "processing_error",
+              "value": "={{ ($node['Set - Normalizar Variáveis'].json.content || '').trim() === '' ? 'EMPTY_TEXT_MESSAGE' : null }}",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "node-processar-texto",
       "name": "Set - Processar Texto",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [660, 40]
+      "position": [
+        660,
+        40
+      ]
     },
     {
       "parameters": {
         "method": "GET",
         "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_GRAPH_API_VERSION || 'v21.0' }}/{{ $node['Set - Normalizar Variáveis'].json.media_id }}",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" } ] },
-        "options": { "timeout": 30000, "retry": { "retry": { "maxRetries": 3 } } }
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "retry": {
+            "retry": {
+              "maxRetries": 3
+            }
+          }
+        }
       },
       "id": "node-audio-url",
       "name": "HTTP - Obter URL do Áudio (Graph API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 200]
+      "position": [
+        660,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
         "url": "={{ $json.url }}",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" } ] },
-        "options": { "timeout": 30000, "response": { "response": { "responseFormat": "file" } }, "retry": { "retry": { "maxRetries": 3 } } }
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "retry": {
+            "retry": {
+              "maxRetries": 3
+            }
+          }
+        }
       },
       "id": "node-audio-download",
       "name": "HTTP - Baixar Áudio (binário)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 200]
+      "position": [
+        880,
+        200
+      ]
     },
     {
       "parameters": {
@@ -199,22 +442,45 @@
       "name": "Validar Arquivo de Áudio",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200]
+      "position": [
+        1100,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/audio/transcriptions",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" } ] },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {
           "parameters": [
-            { "parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "data" },
-            { "name": "model", "value": "whisper-1" },
-            { "name": "language", "value": "pt" },
-            { "name": "response_format", "value": "text" }
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "name": "language",
+              "value": "pt"
+            },
+            {
+              "name": "response_format",
+              "value": "text"
+            }
           ]
         },
         "options": {}
@@ -224,51 +490,113 @@
       "name": "Transcrever Áudio (Whisper HTTP)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, 200]
+      "position": [
+        1320,
+        200
+      ]
     },
     {
       "parameters": {
         "mode": "manual",
-        "assignments": { "assignments": [
-          { "id": "au1", "name": "message", "value": "={{ ($json.text || '').trim() }}", "type": "string" },
-          { "id": "au2", "name": "processing_status", "value": "={{ ($json.text || '').trim() === '' ? 'error' : 'ok' }}", "type": "string" },
-          { "id": "au3", "name": "processing_error", "value": "={{ ($json.text || '').trim() === '' ? 'AUDIO_TRANSCRIPTION_FAILED' : null }}", "type": "string" }
-        ] },
+        "assignments": {
+          "assignments": [
+            {
+              "id": "au1",
+              "name": "message",
+              "value": "={{ ($json.text || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "au2",
+              "name": "processing_status",
+              "value": "={{ ($json.text || '').trim() === '' ? 'error' : 'ok' }}",
+              "type": "string"
+            },
+            {
+              "id": "au3",
+              "name": "processing_error",
+              "value": "={{ ($json.text || '').trim() === '' ? 'AUDIO_TRANSCRIPTION_FAILED' : null }}",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "node-processar-transcricao",
       "name": "Set - Processar Transcrição",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1540, 200]
+      "position": [
+        1540,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
         "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_GRAPH_API_VERSION || 'v21.0' }}/{{ $node['Set - Normalizar Variáveis'].json.media_id }}",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" } ] },
-        "options": { "timeout": 30000, "retry": { "retry": { "maxRetries": 3 } } }
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "retry": {
+            "retry": {
+              "maxRetries": 3
+            }
+          }
+        }
       },
       "id": "node-imagem-url",
       "name": "HTTP - Obter URL da Imagem (Graph API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 420]
+      "position": [
+        660,
+        420
+      ]
     },
     {
       "parameters": {
         "method": "GET",
         "url": "={{ $json.url }}",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" } ] },
-        "options": { "timeout": 30000, "response": { "response": { "responseFormat": "file" } }, "retry": { "retry": { "maxRetries": 3 } } }
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "retry": {
+            "retry": {
+              "maxRetries": 3
+            }
+          }
+        }
       },
       "id": "node-imagem-download",
       "name": "HTTP - Baixar Imagem (binário)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 420]
+      "position": [
+        880,
+        420
+      ]
     },
     {
       "parameters": {
@@ -278,14 +606,28 @@
       "name": "Validar Arquivo de Imagem",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 420]
+      "position": [
+        1100,
+        420
+      ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/chat/completions",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" }, { "name": "Content-Type", "value": "application/json" } ] },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={ \"model\": \"gpt-4o\", \"messages\": [ { \"role\": \"user\", \"content\": [ {\"type\": \"text\", \"text\": \"Descreva esta imagem em português, focando em contexto jurídico se houver.\"}, {\"type\": \"image_url\", \"image_url\": {\"url\": \"{{ $json.image_url }}\"}} ] } ], \"max_tokens\": 500 }",
@@ -296,39 +638,82 @@
       "name": "Descrever Imagem (OpenAI)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, 420]
+      "position": [
+        1320,
+        420
+      ]
     },
     {
       "parameters": {
         "mode": "manual",
-        "assignments": { "assignments": [
-          { "id": "im1", "name": "message", "value": "={{ 'O usuário enviou uma imagem. Segue a descrição da imagem em detalhes: ' + (($json.content || $json.text || '').trim()) }}", "type": "string" },
-          { "id": "im2", "name": "processing_status", "value": "={{ (($json.content || $json.text || '').trim()) === '' ? 'error' : 'ok' }}", "type": "string" },
-          { "id": "im3", "name": "processing_error", "value": "={{ (($json.content || $json.text || '').trim()) === '' ? 'IMAGE_DESCRIPTION_FAILED' : null }}", "type": "string" }
-        ] },
+        "assignments": {
+          "assignments": [
+            {
+              "id": "im1",
+              "name": "message",
+              "value": "={{ 'O usuário enviou uma imagem. Segue a descrição da imagem em detalhes: ' + (($json.content || $json.text || '').trim()) }}",
+              "type": "string"
+            },
+            {
+              "id": "im2",
+              "name": "processing_status",
+              "value": "={{ (($json.content || $json.text || '').trim()) === '' ? 'error' : 'ok' }}",
+              "type": "string"
+            },
+            {
+              "id": "im3",
+              "name": "processing_error",
+              "value": "={{ (($json.content || $json.text || '').trim()) === '' ? 'IMAGE_DESCRIPTION_FAILED' : null }}",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "node-processar-descricao",
       "name": "Set - Processar Descrição",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1540, 420]
+      "position": [
+        1540,
+        420
+      ]
     },
     {
       "parameters": {
         "mode": "manual",
-        "assignments": { "assignments": [
-          { "id": "ns1", "name": "message", "value": "", "type": "string" },
-          { "id": "ns2", "name": "processing_status", "value": "unsupported", "type": "string" },
-          { "id": "ns3", "name": "processing_error", "value": "UNSUPPORTED_MESSAGE_TYPE", "type": "string" }
-        ] },
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ns1",
+              "name": "message",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "ns2",
+              "name": "processing_status",
+              "value": "unsupported",
+              "type": "string"
+            },
+            {
+              "id": "ns3",
+              "name": "processing_error",
+              "value": "UNSUPPORTED_MESSAGE_TYPE",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "node-tipo-nao-suportado",
       "name": "Set - Tipo Não Suportado",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [660, 600]
+      "position": [
+        660,
+        600
+      ]
     },
     {
       "parameters": {
@@ -338,17 +723,44 @@
       "name": "Set - Saída Unificada",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1800, 300]
+      "position": [
+        1800,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
           "combinator": "and",
           "conditions": [
-            { "leftValue": "={{ $json.processing_status }}", "rightValue": "ok", "operator": { "type": "string", "operation": "equals" } },
-            { "leftValue": "={{ $json.from_me }}", "rightValue": "={{ false }}", "operator": { "type": "boolean", "operation": "equals" } },
-            { "leftValue": "={{ $json.message }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }
+            {
+              "leftValue": "={{ $json.processing_status }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.from_me }}",
+              "rightValue": "={{ false }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.message }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
           ]
         },
         "options": {}
@@ -357,42 +769,323 @@
       "name": "Filtro Final",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2,
-      "position": [2020, 300]
+      "position": [
+        2020,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-production-691d.up.railway.app/webhook/modulo-02-human-takeover",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "node-fwd-m02",
+      "name": "HTTP - Encaminhar para Módulo 02",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2220,
+        300
+      ]
     }
   ],
   "connections": {
-    "Webhook - Receber do Backend WhatJuris": { "main": [ [ { "node": "Validar Secret Interno", "type": "main", "index": 0 } ] ] },
-    "Validar Secret Interno": { "main": [ [ { "node": "Expandir Payload", "type": "main", "index": 0 } ], [] ] },
-    "Expandir Payload": { "main": [ [ { "node": "Set - Normalizar Variáveis", "type": "main", "index": 0 } ] ] },
-    "Set - Normalizar Variáveis": { "main": [ [ { "node": "Filtrar Eventos de Mensagem", "type": "main", "index": 0 } ] ] },
-    "Filtrar Eventos de Mensagem": { "main": [ [ { "node": "Verificar Idempotência (PostgreSQL)", "type": "main", "index": 0 } ] ] },
-    "Verificar Idempotência (PostgreSQL)": { "main": [ [ { "node": "IF - Mensagem Enviada pelo Sistema?", "type": "main", "index": 0 } ] ] },
-    "IF - Mensagem Enviada pelo Sistema?": { "main": [ [], [ { "node": "Switch - Tipo da Mensagem", "type": "main", "index": 0 } ] ] },
-    "Switch - Tipo da Mensagem": {
+    "Webhook - Receber do Backend WhatJuris": {
       "main": [
-        [ { "node": "Set - Processar Texto", "type": "main", "index": 0 } ],
-        [ { "node": "HTTP - Obter URL do Áudio (Graph API)", "type": "main", "index": 0 } ],
-        [ { "node": "HTTP - Obter URL da Imagem (Graph API)", "type": "main", "index": 0 } ],
-        [ { "node": "Set - Tipo Não Suportado", "type": "main", "index": 0 } ]
+        [
+          {
+            "node": "Validar Secret Interno",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Set - Processar Texto": { "main": [ [ { "node": "Set - Saída Unificada", "type": "main", "index": 0 } ] ] },
-    "HTTP - Obter URL do Áudio (Graph API)": { "main": [ [ { "node": "HTTP - Baixar Áudio (binário)", "type": "main", "index": 0 } ] ] },
-    "HTTP - Baixar Áudio (binário)": { "main": [ [ { "node": "Validar Arquivo de Áudio", "type": "main", "index": 0 } ] ] },
-    "Validar Arquivo de Áudio": { "main": [ [ { "node": "Transcrever Áudio (Whisper HTTP)", "type": "main", "index": 0 } ] ] },
-    "Transcrever Áudio (Whisper HTTP)": { "main": [ [ { "node": "Set - Processar Transcrição", "type": "main", "index": 0 } ] ] },
-    "Set - Processar Transcrição": { "main": [ [ { "node": "Set - Saída Unificada", "type": "main", "index": 0 } ] ] },
-    "HTTP - Obter URL da Imagem (Graph API)": { "main": [ [ { "node": "HTTP - Baixar Imagem (binário)", "type": "main", "index": 0 } ] ] },
-    "HTTP - Baixar Imagem (binário)": { "main": [ [ { "node": "Validar Arquivo de Imagem", "type": "main", "index": 0 } ] ] },
-    "Validar Arquivo de Imagem": { "main": [ [ { "node": "Descrever Imagem (OpenAI)", "type": "main", "index": 0 } ] ] },
-    "Descrever Imagem (OpenAI)": { "main": [ [ { "node": "Set - Processar Descrição", "type": "main", "index": 0 } ] ] },
-    "Set - Processar Descrição": { "main": [ [ { "node": "Set - Saída Unificada", "type": "main", "index": 0 } ] ] },
-    "Set - Tipo Não Suportado": { "main": [ [ { "node": "Set - Saída Unificada", "type": "main", "index": 0 } ] ] },
-    "Set - Saída Unificada": { "main": [ [ { "node": "Filtro Final", "type": "main", "index": 0 } ] ] }
+    "Validar Secret Interno": {
+      "main": [
+        [
+          {
+            "node": "Expandir Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Expandir Payload": {
+      "main": [
+        [
+          {
+            "node": "Set - Normalizar Variáveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Normalizar Variáveis": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Eventos de Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Eventos de Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Verificar Idempotência (PostgreSQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Idempotência (PostgreSQL)": {
+      "main": [
+        [
+          {
+            "node": "IF - Mensagem Enviada pelo Sistema?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Mensagem Enviada pelo Sistema?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Switch - Tipo da Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Tipo da Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Set - Processar Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Obter URL do Áudio (Graph API)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Obter URL da Imagem (Graph API)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Tipo Não Suportado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Processar Texto": {
+      "main": [
+        [
+          {
+            "node": "Set - Saída Unificada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Obter URL do Áudio (Graph API)": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Baixar Áudio (binário)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Baixar Áudio (binário)": {
+      "main": [
+        [
+          {
+            "node": "Validar Arquivo de Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Arquivo de Áudio": {
+      "main": [
+        [
+          {
+            "node": "Transcrever Áudio (Whisper HTTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever Áudio (Whisper HTTP)": {
+      "main": [
+        [
+          {
+            "node": "Set - Processar Transcrição",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Processar Transcrição": {
+      "main": [
+        [
+          {
+            "node": "Set - Saída Unificada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Obter URL da Imagem (Graph API)": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Baixar Imagem (binário)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Baixar Imagem (binário)": {
+      "main": [
+        [
+          {
+            "node": "Validar Arquivo de Imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Arquivo de Imagem": {
+      "main": [
+        [
+          {
+            "node": "Descrever Imagem (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descrever Imagem (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Set - Processar Descrição",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Processar Descrição": {
+      "main": [
+        [
+          {
+            "node": "Set - Saída Unificada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Tipo Não Suportado": {
+      "main": [
+        [
+          {
+            "node": "Set - Saída Unificada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Saída Unificada": {
+      "main": [
+        [
+          {
+            "node": "Filtro Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtro Final": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Encaminhar para Módulo 02",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {},
-  "meta": { "templateId": "whatjuris-modulo-01" },
-  "tags": [ { "name": "whatjuris" }, { "name": "modulo-01" } ]
+  "meta": {
+    "templateId": "whatjuris-modulo-01"
+  },
+  "tags": [
+    {
+      "name": "whatjuris"
+    },
+    {
+      "name": "modulo-01"
+    }
+  ]
 }
