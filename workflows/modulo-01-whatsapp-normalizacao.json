@@ -22,7 +22,7 @@
           "combinator": "and",
           "conditions": [
             {
-              "leftValue": "={{ $json.headers['x-internal-webhook-secret'] }}",
+              "leftValue": "={{ $json.headers['x-webhook-secret'] }}",
               "rightValue": "={{ $env.WEBHOOK_SECRET }}",
               "operator": { "type": "string", "operation": "equals" }
             }
@@ -104,8 +104,9 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { messageId: $json.message_id } }}",
-        "options": { "timeout": 10000 }
+        "options": { "timeout": 10000, "response": { "response": { "neverError": true } } }
       },
+      "onError": "continueRegularOutput",
       "id": "node-idempotencia",
       "name": "Verificar Idempotência (PostgreSQL)",
       "type": "n8n-nodes-base.httpRequest",
