@@ -94,7 +94,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://whatjuris-crm.onrender.com/api/internal/idempotency/check",
+        "url": "=https://whatjuris-crm.onrender.com/api/internal/idempotency/check/",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
