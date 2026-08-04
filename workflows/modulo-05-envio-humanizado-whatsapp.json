@@ -689,6 +689,78 @@
         0,
         0
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tg1",
+              "leftValue": "={{ $env.WHATSAPP_TYPING_INDICATOR_ENABLED }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a8dc8060-7f59-4665-a2f2-d3b7ba331b2a",
+      "name": "IF - Typing Habilitado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/1196691023534009/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { messaging_product: 'whatsapp', status: 'read', message_id: $('Set - Normalizar Entrada').item.json.message_id, typing_indicator: { type: 'text' } } }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "90bb9ce3-4fb3-4582-b03b-6e5980bea62f",
+      "name": "HTTP - Enviar Digitando (Typing)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        420
+      ],
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "q1c4NDFJx3nJANfr",
+          "name": "Header Auth account"
+        },
+        "httpBearerAuth": {
+          "id": "ZJFD7cI2bTEwzeqO",
+          "name": "Bearer Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -856,7 +928,7 @@
       "main": [
         [
           {
-            "node": "HTTP - Meta Enviar Texto",
+            "node": "IF - Typing Habilitado?",
             "type": "main",
             "index": 0
           }
@@ -925,7 +997,7 @@
       "main": [
         [
           {
-            "node": "Set - Calcular Delay",
+            "node": "Loop Over Items",
             "type": "main",
             "index": 0
           }
@@ -954,7 +1026,36 @@
       "main": [
         [
           {
-            "node": "Loop Over Items",
+            "node": "HTTP - Meta Enviar Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Typing Habilitado?": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Enviar Digitando (Typing)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Calcular Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Enviar Digitando (Typing)": {
+      "main": [
+        [
+          {
+            "node": "Set - Calcular Delay",
             "type": "main",
             "index": 0
           }
