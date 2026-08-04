@@ -12,7 +12,8 @@
         "sass": "sass ./public/assets/scss:./public/assets/css/",
         "sass-min": "sass ./public/assets/scss:./public/assets/css/ --style compressed",
         "setup:n8n": "node scripts/setup-n8n.js",
-        "setup:n8n-agents": "node scripts/setup-n8n-agents.js"
+        "setup:n8n-agents": "node scripts/setup-n8n-agents.js",
+        "clear:triage-memory": "node scripts/clear-triage-memory.js"
     },
     "prisma": {
         "seed": "node prisma/seed.js"

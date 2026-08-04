@@ -357,10 +357,10 @@
     },
     {
       "parameters": {
-        "amount": "={{ $env.MESSAGE_BUFFER_WAIT_SECONDS || 10 }}"
+        "amount": "={{ $env.MESSAGE_BUFFER_WAIT_SECONDS || 5 }}"
       },
       "id": "0e34a747-ab64-4736-b901-1be3b6ea65d6",
-      "name": "Wait - Janela de 10 Segundos",
+      "name": "Wait - Janela de 5 Segundos",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
@@ -1099,14 +1099,14 @@
         ],
         [
           {
-            "node": "Wait - Janela de 10 Segundos",
+            "node": "Wait - Janela de 5 Segundos",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Wait - Janela de 10 Segundos": {
+    "Wait - Janela de 5 Segundos": {
       "main": [
         [
           {
