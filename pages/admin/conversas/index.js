@@ -303,7 +303,9 @@ const Conversas = () => {
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {mode === 'human' ? (
+                    {mode === 'human' && control?.source === 'automatic_timeout' ? (
+                      <StatusBadge variant="red">⚠️ IA falhou — atender agora</StatusBadge>
+                    ) : mode === 'human' ? (
                       <StatusBadge variant="amber">
                         👤 Humano{control?.taken_over_by_name ? ` · ${control.taken_over_by_name}` : ''}
                         {control?.ttl_remaining_seconds ? ` · ${Math.ceil(control.ttl_remaining_seconds / 60)}min` : ''}
