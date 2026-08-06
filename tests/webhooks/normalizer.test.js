@@ -14,8 +14,8 @@ function fixture(name) {
 
 const CONTRACT_KEYS = [
   'instance_name', 'chat_id', 'content', 'from_me', 'message_id', 'message_type',
-  'raw_message_type', 'message', 'media_id', 'media_mime_type', 'received_at',
-  'processing_status', 'processing_error',
+  'raw_message_type', 'message', 'interactive_reply_id', 'media_id', 'media_mime_type',
+  'received_at', 'processing_status', 'processing_error',
 ];
 
 describe('normalizeMessageType (caso 10 — aliases)', () => {
@@ -27,6 +27,9 @@ describe('normalizeMessageType (caso 10 — aliases)', () => {
   it('mapeia image e imageMessage → image message', () => {
     expect(normalizeMessageType('image')).toBe('image message');
     expect(normalizeMessageType('imageMessage')).toBe('image message');
+  });
+  it('mapeia interactive → interactive', () => {
+    expect(normalizeMessageType('interactive')).toBe('interactive');
   });
   it('qualquer outro → unsupported', () => {
     expect(normalizeMessageType('video')).toBe('unsupported');
@@ -101,6 +104,50 @@ describe('parseMetaPayload', () => {
     expect(e.processing_status).toBe('unsupported');
     expect(e.processing_error).toBe('UNSUPPORTED_MESSAGE_TYPE');
     expect(e.message).toBe('');
+  });
+
+  it('resposta de lista interativa → message=título, interactive_reply_id=id, ok', () => {
+    const payload = {
+      entry: [{ changes: [{ value: {
+        metadata: { phone_number_id: 'X' },
+        contacts: [{ wa_id: '5513978015937' }],
+        messages: [{ from: '5513978015937', id: 'wamid.LIST', timestamp: '1785252600', type: 'interactive',
+          interactive: { type: 'list_reply', list_reply: { id: 'trabalhista', title: '⚖️ Trabalhista', description: 'Demissão, verbas' } } }],
+      } }] }],
+    };
+    const e = parseMetaPayload(payload).envelopes[0];
+    expect(e.message_type).toBe('interactive');
+    expect(e.raw_message_type).toBe('interactive');
+    expect(e.interactive_reply_id).toBe('trabalhista');
+    expect(e.message).toBe('⚖️ Trabalhista');
+    expect(e.content).toBe('⚖️ Trabalhista');
+    expect(e.processing_status).toBe('ok');
+  });
+
+  it('resposta de botão interativo (button_reply) também é capturada', () => {
+    const payload = {
+      entry: [{ changes: [{ value: {
+        messages: [{ from: '5513978015937', id: 'wamid.BTN', timestamp: '1785252600', type: 'interactive',
+          interactive: { type: 'button_reply', button_reply: { id: 'sim', title: 'Sim' } } }],
+      } }] }],
+    };
+    const e = parseMetaPayload(payload).envelopes[0];
+    expect(e.interactive_reply_id).toBe('sim');
+    expect(e.message).toBe('Sim');
+    expect(e.processing_status).toBe('ok');
+  });
+
+  it('interactive sem id → unsupported (não encaminha)', () => {
+    const payload = {
+      entry: [{ changes: [{ value: {
+        messages: [{ from: '5513978015937', id: 'wamid.BAD', timestamp: '1785252600', type: 'interactive',
+          interactive: { type: 'list_reply', list_reply: { title: 'sem id' } } }],
+      } }] }],
+    };
+    const e = parseMetaPayload(payload).envelopes[0];
+    expect(e.interactive_reply_id).toBeNull();
+    expect(e.processing_status).toBe('unsupported');
+    expect(e.processing_error).toBe('UNSUPPORTED_INTERACTIVE_REPLY');
   });
 
   it('contrato completo — todos os campos presentes (caso 22)', () => {
