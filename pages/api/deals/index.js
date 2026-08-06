@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { withAuth, BadRequest, Forbidden } from '@/lib/auth/guard';
 import { dealWhere } from '@/lib/query/scope';
-import { applyListFilters } from '@/lib/query/deal-filters';
+import { applyListFilters, attachControlState } from '@/lib/query/deal-filters';
 
 const createSchema = z.object({
   title: z.string().trim().min(1, 'Título obrigatório.').max(200),
@@ -67,7 +67,18 @@ async function handler(req, res, ctx) {
     // instance_name default (deals antigos têm instanceName null) — o frontend
     // usa isto na URL dos endpoints de takeover/control/envio.
     const fallbackInstance = process.env.WHATSAPP_INSTANCE_NAME || 'escritorio-principal';
-    const deals = rows.map((d) => ({ ...d, instanceName: d.instanceName || fallbackInstance }));
+    const withInstance = rows.map((d) => ({ ...d, instanceName: d.instanceName || fallbackInstance }));
+
+    // Estado de controle (takeover) por deal, para o badge da lista. Só takeover
+    // ATIVO (mode:'human' + blockedUntil>now), numa query em lote (sem N+1).
+    const chatIds = withInstance.map((d) => d.contact?.whatsapp).filter(Boolean);
+    const controls = chatIds.length
+      ? await prisma.conversationControl.findMany({
+          where: { chatId: { in: chatIds }, mode: 'human', blockedUntil: { gt: new Date() } },
+          select: { chatId: true, takeoverSource: true },
+        })
+      : [];
+    const deals = attachControlState(withInstance, controls);
 
     return res.status(200).json({ deals, total });
   }

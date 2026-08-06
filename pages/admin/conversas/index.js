@@ -58,6 +58,20 @@ function UrgenciaBadge({ urgencia }) {
   );
 }
 
+// Badge de controle na linha da lista: vermelho quando o takeover foi por falha
+// da IA (automatic_timeout), âmbar quando manual/humano. Nada no modo IA.
+function CtrlBadge({ control }) {
+  if (!control || control.mode !== 'human') return null;
+  const c = control.source === 'automatic_timeout'
+    ? { bg: 'rgba(240,78,78,0.15)', fg: 'var(--red)', label: '⚠️ IA falhou' }
+    : { bg: 'rgba(245,166,35,0.15)', fg: 'var(--amber)', label: '👤 Humano' };
+  return (
+    <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 20, whiteSpace: 'nowrap', background: c.bg, color: c.fg }}>
+      {c.label}
+    </span>
+  );
+}
+
 const selectStyle = {
   fontSize: 12, padding: '7px 9px', borderRadius: 8, background: 'var(--card-alt)',
   border: '1px solid var(--border)', color: 'var(--text)', width: '100%',
@@ -274,6 +288,7 @@ const Conversas = () => {
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 7 }}>{d.title}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <CtrlBadge control={d.control} />
                       <AreaBadge area={d.legalArea} />
                       {d.urgencia && <UrgenciaBadge urgencia={d.urgencia} />}
                     </div>
