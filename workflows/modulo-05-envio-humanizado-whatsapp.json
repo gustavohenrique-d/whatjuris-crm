@@ -637,7 +637,7 @@
             {
               "id": "dl1",
               "name": "typing_delay_seconds",
-              "value": "={{ (() => { const len = String($('Loop Over Items').item.json.fragment.text ?? '').length; const min=2000,max=4000,perChar=30; const jitter=Math.floor(Math.random()*501); return Math.min(max, Math.max(min, len*perChar+jitter)) / 1000; })() }}",
+              "value": "={{ (() => { const len = String($('Loop Over Items').item.json.fragment.text ?? '').length; const min=1000,max=2000,perChar=30; const jitter=Math.floor(Math.random()*501); return Math.min(max, Math.max(min, len*perChar+jitter)) / 1000; })() }}",
               "type": "number"
             }
           ]

@@ -357,10 +357,10 @@
     },
     {
       "parameters": {
-        "amount": "={{ $env.MESSAGE_BUFFER_WAIT_SECONDS || 5 }}"
+        "amount": "={{ $env.MESSAGE_BUFFER_WAIT_SECONDS || 2 }}"
       },
       "id": "0e34a747-ab64-4736-b901-1be3b6ea65d6",
-      "name": "Wait - Janela de 5 Segundos",
+      "name": "Wait - Janela de 2 Segundos",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
@@ -1099,18 +1099,7 @@
         ],
         [
           {
-            "node": "Wait - Janela de 5 Segundos",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Wait - Janela de 5 Segundos": {
-      "main": [
-        [
-          {
-            "node": "HTTP - Consultar Última Mensagem",
+            "node": "Wait - Janela de 2 Segundos",
             "type": "main",
             "index": 0
           }
@@ -1282,6 +1271,17 @@
         [
           {
             "node": "HTTP - Encaminhar para Módulo 04",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - Janela de 2 Segundos": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Consultar Última Mensagem",
             "type": "main",
             "index": 0
           }
