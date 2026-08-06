@@ -46,4 +46,20 @@ describe('buildAreaMenuPayload', () => {
       expect(r).toHaveProperty('description');
     }
   });
+
+  it('respeita os limites de tamanho da Cloud API (senão #131009)', () => {
+    const p = buildAreaMenuPayload('5513978015937');
+    const it = p.interactive;
+    expect([...it.action.button].length).toBeLessThanOrEqual(20);
+    for (const s of it.action.sections) {
+      expect([...s.title].length).toBeLessThanOrEqual(24);
+      for (const r of s.rows) {
+        // conta por code points (spread), como o WhatsApp
+        expect([...r.title].length).toBeLessThanOrEqual(24);
+        expect([...r.description].length).toBeLessThanOrEqual(72);
+      }
+    }
+    expect([...it.header.text].length).toBeLessThanOrEqual(60);
+    expect([...it.footer.text].length).toBeLessThanOrEqual(60);
+  });
 });
