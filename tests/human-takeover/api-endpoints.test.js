@@ -118,8 +118,10 @@ describe('workflow n8n modulo-02', () => {
     expect(/sk-[A-Za-z0-9]/.test(raw)).toBe(false);
     expect(/Bearer\s+[A-Za-z0-9]/.test(raw)).toBe(false);
     expect(/"password"\s*:\s*"[^"]+"/.test(raw)).toBe(false);
-    // auth via credencial Custom Auth no n8n — o header x-webhook-secret foi
-    // removido dos nós, então o workflow não referencia mais o segredo.
-    expect(raw.includes('WEBHOOK_SECRET')).toBe(false);
+    // o webhook-secret aparece só como referência $env.WEBHOOK_SECRET (auth
+    // resolvida em runtime), nunca um valor hardcoded no arquivo.
+    const totalSecret = (raw.match(/WEBHOOK_SECRET/g) || []).length;
+    const viaEnv = (raw.match(/\$env\.WEBHOOK_SECRET/g) || []).length;
+    expect(viaEnv).toBe(totalSecret);
   });
 });

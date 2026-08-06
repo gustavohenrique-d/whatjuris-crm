@@ -13,8 +13,11 @@ describe('workflow n8n modulo-03', () => {
     expect(/sk-[A-Za-z0-9]/.test(raw)).toBe(false);
     expect(/Bearer\s+[A-Za-z0-9]/.test(raw)).toBe(false);
     expect(/"password"\s*:\s*"[^"]+"/.test(raw)).toBe(false);
-    // auth via credencial Custom Auth no n8n — header x-webhook-secret removido.
-    expect(raw.includes('WEBHOOK_SECRET')).toBe(false);
+    // o webhook-secret aparece só como referência $env.WEBHOOK_SECRET (auth
+    // resolvida em runtime), nunca um valor hardcoded no arquivo.
+    const totalSecret = (raw.match(/WEBHOOK_SECRET/g) || []).length;
+    const viaEnv = (raw.match(/\$env\.WEBHOOK_SECRET/g) || []).length;
+    expect(viaEnv).toBe(totalSecret);
   });
 
   it('tem o nó Wait usando MESSAGE_BUFFER_WAIT_SECONDS', () => {

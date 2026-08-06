@@ -23,7 +23,9 @@ import { verifyMetaSignature, verifyVerifyToken } from '@/lib/webhooks/signature
 import { parseMetaPayload } from '@/lib/webhooks/whatsapp-normalizer';
 import { isDuplicate, register } from '@/lib/webhooks/idempotency';
 import { finalizeEnvelope, isForwardable } from '@/lib/webhooks/process-message';
-import { findOrCreateContact, findOrCreateDeal } from '@/lib/whatsapp/lead';
+import { findOrCreateContact, findOrCreateDeal, updateDealTriage } from '@/lib/whatsapp/lead';
+import { sendInteractiveList } from '@/lib/whatsapp/send';
+import { areaFromReplyId } from '@/lib/whatsapp/area-menu';
 
 // Body parser desligado para validar a assinatura no raw body.
 export const config = { api: { bodyParser: false } };
@@ -43,21 +45,9 @@ function maskChatId(chatId) {
   return digits ? `${digits.slice(0, 5)}***` : '***';
 }
 
-// Persiste a mensagem e notifica o n8n com o contrato. Chamada só para
-// envelopes encaminháveis (status ok, from_me false, message não vazia).
-async function persistAndForward(env, profileName) {
-  const contact = await findOrCreateContact(env.chat_id, profileName);
-  const deal = await findOrCreateDeal(contact);
-
-  await recordWhatsappMessage({
-    dealId: deal.id,
-    contactId: contact.id,
-    direction: 'in',
-    content: env.message,
-    whatsappMessageId: env.message_id,
-  });
-
-  // Encaminha o contrato normalizado + dados do CRM que o fluxo de triagem usa.
+// Encaminha o contrato normalizado ao n8n (fire-and-forget). Fonte única do
+// handoff CRM→n8n usada pelos casos que devem acionar o agente.
+function forwardToN8n(env, deal, contact) {
   notifyN8n({
     event: 'message.received',
     dealId: deal.id,
@@ -69,6 +59,49 @@ async function persistAndForward(env, profileName) {
     whatsappMessageId: env.message_id,
     contract: env,
   }).catch((err) => console.error('[webhook] n8n notify falhou:', err.message));
+}
+
+// Persiste a mensagem recebida e decide o fluxo (menu de áreas × agente).
+// Chamada só para envelopes encaminháveis (status ok, from_me false, msg != '').
+async function persistAndForward(env, profileName) {
+  const contact = await findOrCreateContact(env.chat_id, profileName);
+  const deal = await findOrCreateDeal(contact);
+
+  // Registra a mensagem recebida (para list_reply, guarda o título clicado).
+  await recordWhatsappMessage({
+    dealId: deal.id,
+    contactId: contact.id,
+    direction: 'in',
+    content: env.message,
+    whatsappMessageId: env.message_id,
+  });
+
+  // === MENU DE ÁREAS (branch antes do agente) ===
+
+  // Caso 1: o cliente escolheu uma área no menu → grava a área e encaminha ao
+  // agente já com a área definida (o agente pula a pergunta de área).
+  if (env.interactive_reply_id) {
+    const area = areaFromReplyId(env.interactive_reply_id);
+    await updateDealTriage(deal.id, { legalArea: area, faseTriage: 'coletando_dados' });
+    env.message = area
+      ? `Selecionei a área: ${area}.`
+      : 'Ainda não sei a área do meu caso.';
+    env.preselected_area = area;
+    return forwardToN8n(env, deal, contact);
+  }
+
+  // Caso 2: primeiro contato (deal recém-criado) → envia o menu de áreas e NÃO
+  // aciona o agente ainda (economiza a chamada ao GPT no turno inicial).
+  if (deal.isNew) {
+    await sendInteractiveList({ to: env.chat_id, dealId: deal.id, contactId: contact.id }).catch(
+      (err) => console.error('[webhook:whatsapp] envio do menu falhou:', err.message)
+    );
+    await updateDealTriage(deal.id, { faseTriage: 'aguardando_selecao_area' });
+    return;
+  }
+
+  // Caso 3: conversa em andamento → encaminha normalmente ao agente.
+  return forwardToN8n(env, deal, contact);
 }
 
 export default async function handler(req, res) {
