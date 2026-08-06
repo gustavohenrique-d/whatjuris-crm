@@ -800,7 +800,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $json.instance_name }}/{{ $json.chat_id }}/takeover",
+        "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $('Set - Mensagem de Fallback').first().json.instance_name }}/{{ $('Set - Mensagem de Fallback').first().json.chat_id }}/takeover",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
