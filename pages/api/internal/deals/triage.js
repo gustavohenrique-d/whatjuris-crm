@@ -15,6 +15,7 @@ import { isDuplicate, register } from '@/lib/webhooks/idempotency';
 import { recordAiAction } from '@/lib/activities/record';
 import { computeQualification } from '@/lib/triage/qualify';
 import { normalizeDados, validateTriageOutput } from '@/lib/triage/validate-output';
+import { notifyLawyer } from '@/lib/notifications/lawyer';
 
 const schema = z.object({
   instance_name: z.string().trim().min(1).max(100),
@@ -129,6 +130,22 @@ export default async function handler(req, res) {
     });
 
     await register(idemKey, whatsapp);
+
+    // Notifica o advogado na PRIMEIRA qualificação (best-effort, não bloqueia a
+    // resposta; roda no servidor persistente do Render).
+    if (qualified && !deal.qualifiedAt) {
+      const nome = dados.nome && dados.nome.trim().length >= 3 ? dados.nome.trim() : contact.name;
+      notifyLawyer({
+        event: 'lead_qualified',
+        data: {
+          name: nome,
+          whatsapp,
+          area: data.legalArea ?? deal.legalArea,
+          urgencia: dados.urgencia ?? deal.urgencia,
+          resumo: dados.resumo_caso,
+        },
+      }).catch((err) => console.error('[triage] notifyLawyer falhou:', err.message));
+    }
 
     return res.status(200).json({
       updated: true,

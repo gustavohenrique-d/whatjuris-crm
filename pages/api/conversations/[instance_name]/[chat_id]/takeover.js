@@ -7,8 +7,10 @@
 // =============================================================================
 
 import { z } from 'zod';
+import { prisma } from '@/lib/db/prisma';
 import { resolveConversationActor } from '@/lib/conversations/http-auth';
 import { activateTakeover } from '@/lib/conversations/control';
+import { notifyLawyer } from '@/lib/notifications/lawyer';
 
 const schema = z.object({
   source: z.enum(['human_mobile', 'crm_human', 'admin', 'automatic_timeout']).optional(),
@@ -44,6 +46,29 @@ export default async function handler(req, res) {
       messageId: parsed.data.message_id ?? null,
       ttlSeconds: parsed.data.ttl_seconds,
     });
+
+    // IA falhou → takeover automático: notifica o advogado (best-effort, não bloqueia).
+    if (source === 'automatic_timeout') {
+      const digits = String(chat_id).replace(/\D/g, '');
+      const contact = await prisma.contact
+        .findFirst({
+          where: { whatsapp: digits, deletedAt: null },
+          select: {
+            name: true,
+            deals: {
+              where: { status: 'OPEN', deletedAt: null },
+              select: { legalArea: true },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        })
+        .catch(() => null);
+      notifyLawyer({
+        event: 'ai_failure_takeover',
+        data: { name: contact?.name, whatsapp: digits, area: contact?.deals?.[0]?.legalArea },
+      }).catch((err) => console.error('[takeover] notifyLawyer falhou:', err.message));
+    }
 
     const ttlRemaining = result.blockedUntil
       ? Math.max(0, Math.ceil((result.blockedUntil.getTime() - Date.now()) / 1000))
