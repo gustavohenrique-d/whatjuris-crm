@@ -6,6 +6,7 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useSession } from 'next-auth/react';
 import Seo from '../../../shared/layout-components/seo/seo';
 import { WjCard, WjScreenHeader } from '../../../shared/components/wj';
 
@@ -38,10 +39,32 @@ function CardTitle({ title, sub }) {
 }
 
 const Relatorios = () => {
+  const { data: session } = useSession();
+  const canSendReport = (session?.permissions || []).includes('report.read.all');
+  const [sendingReport, setSendingReport] = useState(false);
+
   const [areas, setAreas] = useState({ areas: [], total: 0 });
   const [conversao, setConversao] = useState([]);
   const [agentes, setAgentes] = useState([]);
   const [tempos, setTempos] = useState([]);
+
+  const doSendReport = async () => {
+    if (sendingReport) return;
+    setSendingReport(true);
+    try {
+      const { data } = await axios.post('/api/reports/weekly/');
+      const nota = data?.email?.skipped
+        ? ' (RESEND_API_KEY vazia — e-mail não enviado, conteúdo logado no servidor)'
+        : '';
+      window.alert(`Relatório semanal processado para ${data?.to || 'destinatário'} · ${data?.total ?? 0} leads na semana.${nota}`);
+    } catch (err) {
+      if (err?.response?.status === 403) window.alert('Você não tem permissão para enviar o relatório.');
+      else if (err?.response?.status === 400) window.alert('Destinatário não configurado (defina REPORT_EMAIL).');
+      else window.alert('Não foi possível enviar o relatório.');
+    } finally {
+      setSendingReport(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -88,6 +111,22 @@ const Relatorios = () => {
         title="Relatórios"
         sub="Desempenho de captação e dos agentes IA"
       />
+
+      {canSendReport && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <button
+            onClick={doSendReport}
+            disabled={sendingReport}
+            style={{
+              fontSize: 13, fontWeight: 600, padding: '9px 16px', borderRadius: 8, cursor: 'pointer',
+              background: 'var(--accent, #4F8EF7)', color: '#fff', border: 'none',
+              opacity: sendingReport ? 0.6 : 1,
+            }}
+          >
+            {sendingReport ? 'Enviando…' : '✉️ Enviar relatório semanal agora'}
+          </button>
+        </div>
+      )}
 
       {/* .reports-grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
