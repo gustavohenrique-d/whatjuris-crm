@@ -50,6 +50,7 @@ export default async function handler(req, res) {
       to,
       periodo: { start: range.start.toISOString(), end: range.end.toISOString() },
       total: stats.total,
+      stats, // { total, byArea, byUrgencia, byFase } — breakdown do relatório
       email, // { sent:true } ou { skipped:true } (sem RESEND_API_KEY)
     });
   } catch (err) {
