@@ -19,9 +19,11 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { recordAiAction } from '@/lib/activities/record';
 import { sendWhatsappMessage } from '@/lib/whatsapp/send';
+import { createCalendarEvent } from '@/lib/calendar/create';
+import { paraInstante, dentroDoExpediente, formatarBR } from '@/lib/calendar/horario';
 
 const schema = z.object({
-  action: z.enum(['move_stage', 'record_action', 'send_message', 'get_deal', 'qualify_lead', 'get_history', 'set_legal_area', 'set_priority']),
+  action: z.enum(['move_stage', 'record_action', 'send_message', 'get_deal', 'qualify_lead', 'get_history', 'set_legal_area', 'set_priority', 'schedule_appointment']),
   dealId: z.string().uuid(),
   limit: z.number().int().positive().max(40).optional(),
   agentName: z.string().optional().default('Agente IA'),
@@ -33,6 +35,11 @@ const schema = z.object({
   phone: z.string().optional(),
   legalArea: z.string().trim().max(60).optional(),
   priority: z.number().int().min(0).max(2).optional(),
+  // schedule_appointment — data/hora vêm do agente em horário de Brasília.
+  data: z.string().trim().optional(),
+  hora: z.string().trim().optional(),
+  tipo: z.enum(['MEETING', 'CALL', 'HEARING']).optional().default('MEETING'),
+  duracaoMin: z.number().int().min(15).max(480).optional(),
 });
 
 function verifySecret(req) {
@@ -55,8 +62,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: parsed.error.issues[0].message });
   }
 
-  const { action, dealId, agentName, stageKey, title, content, metadata, message, phone, legalArea, priority } =
-    parsed.data;
+  const { action, dealId, agentName, stageKey, title, content, metadata, message, phone, legalArea, priority,
+    data, hora, tipo, duracaoMin } = parsed.data;
 
   const deal = await prisma.deal.findFirst({
     where: { id: dealId, deletedAt: null },
@@ -290,6 +297,73 @@ export default async function handler(req, res) {
       return res.status(200).json({
         qualified: true,
         notifiedAdvogado: responsibleAdvogado?.name ?? null,
+      });
+    }
+
+    case 'schedule_appointment': {
+      if (!data || !hora) return res.status(400).json({ error: 'data e hora obrigatórios.' });
+
+      // Fuso explícito: o servidor roda em UTC e a hora do agente é de Brasília.
+      const inicio = paraInstante(data, hora);
+      if (!inicio) {
+        return res.status(400).json({ error: 'Data ou hora inválida (use YYYY-MM-DD e HH:MM).' });
+      }
+      if (inicio.getTime() <= Date.now()) {
+        return res.status(400).json({ error: 'Não é possível agendar no passado.' });
+      }
+
+      // A LLM foi instruída a respeitar o expediente, mas a fronteira de
+      // confiança é aqui — alucinação não pode marcar domingo às 3h.
+      const org = await prisma.organization.findFirst({ select: { businessHours: true } });
+      if (!dentroDoExpediente(inicio, org?.businessHours)) {
+        return res.status(400).json({
+          error: 'Horário fora do expediente do escritório.',
+          detail: formatarBR(inicio),
+        });
+      }
+
+      const fim = new Date(inicio.getTime() + (duracaoMin ?? 60) * 60 * 1000);
+
+      const activity = await createCalendarEvent({
+        dealId,
+        contactId: deal.contact?.id ?? null,
+        type: tipo,
+        title: title || `Consulta — ${deal.contact?.name || 'cliente'}`,
+        content: content || null,
+        dueAt: inicio,
+        endAt: fim,
+        actorType: 'AI_AGENT',
+        actorLabel: agentName,
+        metadata: { ...(metadata || {}), agendadoPorAgente: true },
+      });
+
+      // Confirmação ao cliente. O número vem SEMPRE do banco — aceitar do
+      // payload deixaria a LLM escolher o destinatário da mensagem.
+      const to = deal.contact?.whatsapp;
+      let confirmacaoEnviada = false;
+
+      if (to) {
+        try {
+          const envio = await sendWhatsappMessage({
+            to,
+            text: `✅ Consulta agendada para ${formatarBR(inicio)}.`,
+            dealId,
+            contactId: deal.contact?.id,
+          });
+          confirmacaoEnviada = !envio?.skipped;
+        } catch (err) {
+          // O evento já existe no Google; falha de envio não desfaz o agendamento.
+          console.error('[schedule_appointment] falha ao confirmar no WhatsApp:', err.message);
+        }
+      }
+
+      return res.status(200).json({
+        scheduled: true,
+        activityId: activity.id,
+        googleEventId: activity.metadata?.googleEventId ?? null,
+        dueAt: inicio.toISOString(),
+        endAt: fim.toISOString(),
+        confirmacaoEnviada,
       });
     }
 
