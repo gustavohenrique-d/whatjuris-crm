@@ -8,7 +8,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import ptBrLocale from '@fullcalendar/core/locales/pt-br';
-import { Fragment, useCallback, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { Form, Modal, Spinner } from 'react-bootstrap';
 import { toast } from 'react-toastify';
@@ -27,6 +27,12 @@ const eventTextColor = { MEETING: '#0F1117', HEARING: '#fff', TASK: '#0F1117', C
 
 const LABEL_TIPO = { MEETING: 'Reunião', CALL: 'Ligação', HEARING: 'Audiência', TASK: 'Tarefa' };
 
+// TASK é compromisso interno — o backend não notifica o cliente nesses casos.
+const TIPOS_QUE_NOTIFICAM = ['MEETING', 'CALL', 'HEARING'];
+const ESTADO_INICIAL = {
+  type: 'MEETING', title: '', content: '', dueAt: '', dealId: '', contactId: '',
+};
+
 const LEGEND = [
   { label: 'Consulta inicial', color: 'var(--accent)' },
   { label: 'Audiência', color: 'var(--accent2)' },
@@ -37,9 +43,55 @@ const Agenda = () => {
   const calendarRef = useRef(null);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    type: 'MEETING', title: '', content: '', dueAt: '', dealId: '', contactId: '',
-  });
+  const [form, setForm] = useState(ESTADO_INICIAL);
+
+  // Autocomplete de lead. `leadSelecionado` guarda o objeto para exibir nome
+  // legível; o UUID vive só em form.dealId e nunca aparece na tela.
+  const [buscaLead, setBuscaLead] = useState('');
+  const [resultados, setResultados] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const [leadSelecionado, setLeadSelecionado] = useState(null);
+
+  const limparBusca = useCallback(() => {
+    setBuscaLead(''); setResultados([]); setBuscando(false); setLeadSelecionado(null);
+  }, []);
+
+  const fecharModal = useCallback(() => {
+    setShowModal(false); setForm(ESTADO_INICIAL); limparBusca();
+  }, [limparBusca]);
+
+  // Debounce de 300ms; ignora respostas fora de ordem via flag de cancelamento.
+  useEffect(() => {
+    const termo = buscaLead.trim();
+    if (leadSelecionado || termo.length < 2) { setResultados([]); setBuscando(false); return undefined; }
+
+    let cancelado = false;
+    setBuscando(true);
+    const id = setTimeout(async () => {
+      try {
+        const { data } = await axios.get(`/api/deals/search/?q=${encodeURIComponent(termo)}`);
+        if (!cancelado) setResultados(data.results || []);
+      } catch {
+        if (!cancelado) setResultados([]);
+      } finally {
+        if (!cancelado) setBuscando(false);
+      }
+    }, 300);
+
+    return () => { cancelado = true; clearTimeout(id); };
+  }, [buscaLead, leadSelecionado]);
+
+  const selecionarLead = (lead) => {
+    setLeadSelecionado(lead);
+    setForm((f) => ({ ...f, dealId: lead.id }));
+    setResultados([]);
+    setBuscaLead('');
+  };
+
+  const removerLead = () => {
+    setLeadSelecionado(null);
+    setForm((f) => ({ ...f, dealId: '' }));
+  };
 
   const fetchEvents = useCallback(async (info, successCallback, failureCallback) => {
     try {
@@ -75,8 +127,7 @@ const Agenda = () => {
         contactId: form.contactId || null,
       });
       toast.success('Evento criado.');
-      setShowModal(false);
-      setForm({ type: 'MEETING', title: '', content: '', dueAt: '', dealId: '', contactId: '' });
+      fecharModal();
       calendarRef.current?.getApi().refetchEvents();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Erro ao criar evento.');
@@ -132,7 +183,7 @@ const Agenda = () => {
         </div>
       </WjCard>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)}>
+      <Modal show={showModal} onHide={fecharModal}>
         <Modal.Header closeButton><Modal.Title style={{ fontSize: 16 }}>Novo evento</Modal.Title></Modal.Header>
         <Modal.Body>
           <Form>
@@ -154,10 +205,59 @@ const Agenda = () => {
                 onChange={(e) => setForm((f) => ({ ...f, dueAt: e.target.value }))} />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>ID do caso (deal) <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>opcional</span></Form.Label>
-              <Form.Control value={form.dealId}
-                onChange={(e) => setForm((f) => ({ ...f, dealId: e.target.value }))}
-                placeholder="UUID do deal" />
+              <Form.Label>Cliente <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>opcional</span></Form.Label>
+
+              {leadSelecionado ? (
+                <div className="wj-lead-chip">
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{leadSelecionado.contactName || 'Sem nome'}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                      {[leadSelecionado.whatsapp, leadSelecionado.area, leadSelecionado.stage].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <button type="button" className="wj-lead-x" onClick={removerLead} aria-label="Remover cliente">×</button>
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <Form.Control
+                    value={buscaLead}
+                    onChange={(e) => setBuscaLead(e.target.value)}
+                    placeholder="Busque por nome ou telefone…"
+                    autoComplete="off"
+                  />
+                  {buscando ? (
+                    <Spinner size="sm" style={{ position: 'absolute', right: 10, top: 11, color: 'var(--text-secondary)' }} />
+                  ) : null}
+
+                  {resultados.length > 0 ? (
+                    <div className="wj-lead-drop">
+                      {resultados.map((lead) => (
+                        <button type="button" key={lead.id} className="wj-lead-item" onClick={() => selecionarLead(lead)}>
+                          <span style={{ fontSize: 13 }}>{lead.contactName || 'Sem nome'}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                            {[lead.whatsapp, lead.area, lead.stage].filter(Boolean).join(' · ')}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {!buscando && buscaLead.trim().length >= 2 && resultados.length === 0 ? (
+                    <div className="wj-lead-vazio">Nenhum caso aberto encontrado para “{buscaLead.trim()}”.</div>
+                  ) : null}
+                </div>
+              )}
+
+              {!leadSelecionado && TIPOS_QUE_NOTIFICAM.includes(form.type) ? (
+                <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 6 }}>
+                  Sem cliente vinculado, o evento é criado normalmente — mas ninguém recebe confirmação no WhatsApp.
+                </div>
+              ) : null}
+              {leadSelecionado && !TIPOS_QUE_NOTIFICAM.includes(form.type) ? (
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>
+                  Tarefa é compromisso interno: o cliente não será notificado.
+                </div>
+              ) : null}
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Observações</Form.Label>
@@ -167,7 +267,7 @@ const Agenda = () => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <WjButton variant="outline" onClick={() => setShowModal(false)}>Cancelar</WjButton>
+          <WjButton variant="outline" onClick={fecharModal}>Cancelar</WjButton>
           <WjButton onClick={handleSave} disabled={saving}>
             {saving ? <Spinner size="sm" style={{ marginRight: 6 }} /> : null}Salvar
           </WjButton>
@@ -200,6 +300,31 @@ const Agenda = () => {
         }
         .modal .form-control::placeholder { color: var(--text-secondary); }
         .modal .form-label { font-size: 13px; color: var(--text); }
+
+        /* autocomplete de cliente */
+        .wj-lead-chip {
+          display: flex; align-items: center; justify-content: space-between; gap: 10px;
+          background: var(--bg); border: 1px solid var(--accent);
+          border-radius: 8px; padding: 8px 10px;
+        }
+        .wj-lead-x {
+          background: none; border: none; color: var(--text-secondary);
+          font-size: 20px; line-height: 1; cursor: pointer; padding: 0 4px; flex-shrink: 0;
+        }
+        .wj-lead-x:hover { color: var(--red, #e5534b); }
+        .wj-lead-drop {
+          position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px);
+          background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+          max-height: 240px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+        }
+        .wj-lead-item {
+          display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left;
+          background: none; border: none; color: var(--text);
+          padding: 8px 10px; cursor: pointer;
+        }
+        .wj-lead-item + .wj-lead-item { border-top: 1px solid var(--border); }
+        .wj-lead-item:hover { background: var(--bg); }
+        .wj-lead-vazio { font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
       `}</style>
     </Fragment>
   );
