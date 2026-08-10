@@ -34,6 +34,9 @@ export default function handler(req, res) {
       WHATSAPP_ACCESS_TOKEN: has('WHATSAPP_ACCESS_TOKEN'),
       WHATSAPP_PHONE_NUMBER_ID: has('WHATSAPP_PHONE_NUMBER_ID'),
       OPENAI_API_KEY: has('OPENAI_API_KEY'),
+      GOOGLE_CLIENT_ID: has('GOOGLE_CLIENT_ID'),
+      GOOGLE_CLIENT_SECRET: has('GOOGLE_CLIENT_SECRET'),
+      GOOGLE_REDIRECT_URI: has('GOOGLE_REDIRECT_URI'),
     },
   });
 }
