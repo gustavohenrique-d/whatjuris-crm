@@ -46,6 +46,9 @@ const schema = z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string(),
   })).default([]),
+  // Data corrente enviada pelo n8n. Sem isto o z.object descartaria a chave em
+  // silêncio e o agendador continuaria sem saber que dia é hoje.
+  dataHoje: z.string().datetime().optional(),
 });
 
 function verifySecret(req) {
@@ -74,7 +77,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: parsed.error.issues[0].message });
   }
 
-  const { agent, dealId, message, history } = parsed.data;
+  const { agent, dealId, message, history, dataHoje } = parsed.data;
 
   const deal = await prisma.deal.findFirst({
     where: { id: dealId, deletedAt: null },
@@ -95,7 +98,12 @@ export default async function handler(req, res) {
     qualificador: () => getPromptQualificador({ legalArea: deal.legalArea }),
     encerrador: () => getPromptEncerrador(org),
     nutritor: () => getPromptNutritor(org),
-    agendador: () => getPromptAgendador({ orgName: org.orgName, businessHours: org.businessHours }),
+    agendador: () => getPromptAgendador({
+      orgName: org.orgName,
+      businessHours: org.businessHours,
+      // ausente → o próprio servidor resolve; o default do prompt cobre.
+      dataHoje: dataHoje ? new Date(dataHoje) : new Date(),
+    }),
     resumidor: () => getPromptResumidor(),
   };
 
