@@ -36,7 +36,7 @@
             {
               "id": "a2",
               "name": "source_message_id",
-              "value": "={{ $json.body?.source_message_id ?? $json.source_message_id }}",
+              "value": "={{ $json.body?.source_message_id ?? $json.source_message_id ?? $json.body?.message_id ?? $json.message_id }}",
               "type": "string"
             },
             {
@@ -247,7 +247,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { agent: 'agendador', dealId: $('HTTP - Carregar Deal do CRM').item.json.deal_id, message: $('Set - Preparar Sessao').item.json.message, history: ($json.messages || []).map(m => ({ role: m.role, content: m.content })) } }}"
+        "jsonBody": "={{ { agent: 'agendador', dealId: $('HTTP - Carregar Deal do CRM').item.json.deal_id, message: $('Set - Preparar Sessao').item.json.message, history: ($json.messages || []).map(m => ({ role: m.role, content: m.content })), dataHoje: new Date().toISOString() } }}"
       },
       "id": "HTTP - Chamar Agente Agendador",
       "name": "HTTP - Chamar Agente Agendador",
@@ -399,7 +399,7 @@
             {
               "id": "a0",
               "name": "mensagem_para_cliente",
-              "value": "=Nao consegui reservar esse horario porque esta fora do nosso expediente. Pode escolher outro dia ou horario dentro do atendimento?",
+              "value": "={{ String($('HTTP - Criar Agendamento').item.json.error || '').toLowerCase().includes('expediente') ? 'Nao consegui reservar esse horario porque esta fora do nosso expediente. Pode escolher outro dia ou horario dentro do atendimento?' : 'Tive um problema para registrar o agendamento agora. Pode confirmar o dia e o horario novamente, por favor?' }}",
               "type": "string"
             }
           ]
