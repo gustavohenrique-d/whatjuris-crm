@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { withAuth, BadRequest, NotFound, Forbidden } from '@/lib/auth/guard';
 import { syncToGoogle, deleteFromGoogle } from '@/lib/calendar/google';
+import { notificarRemarcacao, notificarCancelamento } from '@/lib/whatsapp/notificar-agenda';
 
 const updateSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
@@ -26,7 +27,9 @@ async function handler(req, res, ctx) {
     select: {
       id: true, type: true, title: true, content: true,
       dueAt: true, completedAt: true, metadata: true,
-      userId: true,
+      // dealId é lido aqui, antes de qualquer mutação: no DELETE o registro
+      // deixa de existir, e é dele que sai o destinatário da notificação.
+      userId: true, dealId: true,
     },
   });
 
@@ -61,6 +64,19 @@ async function handler(req, res, ctx) {
       await syncToGoogle({ ...updated, content: event.content }, refreshToken);
     }
 
+    // Só remarcação avisa o cliente. Mudar título ou observação não muda o
+    // compromisso dele — notificar nesse caso viraria ruído.
+    const horarioMudou =
+      event.dueAt && updated.dueAt &&
+      new Date(event.dueAt).getTime() !== new Date(updated.dueAt).getTime();
+
+    if (horarioMudou) {
+      notificarRemarcacao({
+        activity: { ...updated, dealId: event.dealId },
+        dueAtAntigo: event.dueAt,
+      }).catch((err) => console.error('[agenda] notificação de remarcação falhou:', err.message));
+    }
+
     return res.status(200).json({ event: updated });
   }
 
@@ -71,6 +87,11 @@ async function handler(req, res, ctx) {
     }
 
     await prisma.activity.delete({ where: { id } });
+
+    // Depois do delete, com os dados lidos no findUnique lá em cima — avisar
+    // antes correria o risco de anunciar um cancelamento que não aconteceu.
+    notificarCancelamento({ activity: event })
+      .catch((err) => console.error('[agenda] notificação de cancelamento falhou:', err.message));
 
     return res.status(200).json({ message: 'Evento removido.' });
   }

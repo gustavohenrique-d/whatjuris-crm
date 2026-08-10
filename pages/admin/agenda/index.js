@@ -33,6 +33,17 @@ const ESTADO_INICIAL = {
   type: 'MEETING', title: '', content: '', dueAt: '', dealId: '', contactId: '',
 };
 
+// ISO (UTC) -> valor de <input type="datetime-local">, que espera hora LOCAL.
+// toISOString() cru colocaria o horário de UTC no campo; ao salvar, isso viraria
+// uma remarcação silenciosa e o cliente receberia aviso de um horário que
+// ninguém mexeu.
+function paraDatetimeLocal(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
 const LEGEND = [
   { label: 'Consulta inicial', color: 'var(--accent)' },
   { label: 'Audiência', color: 'var(--accent2)' },
@@ -52,12 +63,20 @@ const Agenda = () => {
   const [buscando, setBuscando] = useState(false);
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
+  // Edição: guarda o evento original para comparar o horário e habilitar o
+  // "Cancelar evento". null = modal em modo criação.
+  const [eventoEditando, setEventoEditando] = useState(null);
+  const [confirmarCancelar, setConfirmarCancelar] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const modoEdicao = eventoEditando !== null;
+
   const limparBusca = useCallback(() => {
     setBuscaLead(''); setResultados([]); setBuscando(false); setLeadSelecionado(null);
   }, []);
 
   const fecharModal = useCallback(() => {
     setShowModal(false); setForm(ESTADO_INICIAL); limparBusca();
+    setEventoEditando(null); setConfirmarCancelar(false); setExcluindo(false);
   }, [limparBusca]);
 
   // Debounce de 300ms; ignora respostas fora de ordem via flag de cancelamento.
@@ -103,13 +122,49 @@ const Agenda = () => {
         backgroundColor: eventColor[e.type] || '#8892A4',
         borderColor: 'transparent',
         textColor: eventTextColor[e.type] || '#0F1117',
-        extendedProps: { type: e.type, deal: e.deal, content: e.content },
+        // `title` acima mostra o nome do cliente no calendário; o título real
+        // do evento vai aqui, senão a edição gravaria o nome no lugar dele.
+        extendedProps: {
+          type: e.type, deal: e.deal, content: e.content,
+          tituloReal: e.title, dueAt: e.dueAt,
+        },
       }));
       successCallback(events);
     } catch {
       failureCallback(new Error('Erro ao carregar eventos.'));
     }
   }, []);
+
+  const abrirEdicao = (evento) => {
+    const p = evento.extendedProps;
+    setEventoEditando({
+      id: evento.id,
+      dueAtOriginal: p.dueAt,
+      deal: p.deal || null,
+      type: p.type,
+    });
+    setForm({
+      type: p.type,
+      title: p.tituloReal || '',
+      content: p.content || '',
+      dueAt: paraDatetimeLocal(p.dueAt),
+      dealId: p.deal?.id || '',
+      contactId: '',
+    });
+    limparBusca();
+    setConfirmarCancelar(false);
+    setShowModal(true);
+  };
+
+  // O horário mudou em relação ao que foi carregado? Espelha a comparação que o
+  // backend faz para decidir se notifica a remarcação.
+  const horarioMudou = modoEdicao
+    && !!form.dueAt
+    && paraDatetimeLocal(eventoEditando.dueAtOriginal) !== form.dueAt;
+
+  const avisaRemarcacao = horarioMudou
+    && !!eventoEditando?.deal
+    && TIPOS_QUE_NOTIFICAM.includes(form.type);
 
   const handleSave = async () => {
     if (!form.title || !form.dueAt) {
@@ -118,21 +173,46 @@ const Agenda = () => {
     }
     setSaving(true);
     try {
-      await axios.post('/api/agenda/events/', {
-        type: form.type,
-        title: form.title,
-        content: form.content || null,
-        dueAt: new Date(form.dueAt).toISOString(),
-        dealId: form.dealId || null,
-        contactId: form.contactId || null,
-      });
-      toast.success('Evento criado.');
+      if (modoEdicao) {
+        // dueAt vai sempre: é o backend que compara com o valor antigo e decide
+        // se o cliente é notificado.
+        await axios.patch(`/api/agenda/events/${eventoEditando.id}/`, {
+          title: form.title,
+          content: form.content || null,
+          dueAt: new Date(form.dueAt).toISOString(),
+        });
+        toast.success(horarioMudou ? 'Evento remarcado.' : 'Evento atualizado.');
+      } else {
+        await axios.post('/api/agenda/events/', {
+          type: form.type,
+          title: form.title,
+          content: form.content || null,
+          dueAt: new Date(form.dueAt).toISOString(),
+          dealId: form.dealId || null,
+          contactId: form.contactId || null,
+        });
+        toast.success('Evento criado.');
+      }
       fecharModal();
       calendarRef.current?.getApi().refetchEvents();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Erro ao criar evento.');
+      toast.error(err.response?.data?.error || 'Erro ao salvar o evento.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCancelarEvento = async () => {
+    if (!eventoEditando) return;
+    setExcluindo(true);
+    try {
+      await axios.delete(`/api/agenda/events/${eventoEditando.id}/`);
+      toast.success('Evento cancelado.');
+      fecharModal();
+      calendarRef.current?.getApi().refetchEvents();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Erro ao cancelar o evento.');
+      setExcluindo(false);
     }
   };
 
@@ -173,8 +253,9 @@ const Agenda = () => {
             }}
             events={fetchEvents}
             eventClick={(info) => {
-              const deal = info.event.extendedProps.deal;
-              if (deal) window.location.href = `/admin/deals/${deal.id}`;
+              // Sem navegação padrão: o clique abre a edição no próprio modal.
+              info.jsEvent?.preventDefault();
+              abrirEdicao(info.event);
             }}
             slotMinTime="07:00:00"
             slotMaxTime="20:00:00"
@@ -184,14 +265,25 @@ const Agenda = () => {
       </WjCard>
 
       <Modal show={showModal} onHide={fecharModal}>
-        <Modal.Header closeButton><Modal.Title style={{ fontSize: 16 }}>Novo evento</Modal.Title></Modal.Header>
+        <Modal.Header closeButton>
+          <Modal.Title style={{ fontSize: 16 }}>{modoEdicao ? 'Editar evento' : 'Novo evento'}</Modal.Title>
+        </Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Tipo</Form.Label>
-              <Form.Select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+              <Form.Select
+                value={form.type}
+                disabled={modoEdicao}
+                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+              >
                 {Object.entries(LABEL_TIPO).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}
               </Form.Select>
+              {modoEdicao ? (
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>
+                  O tipo não pode ser alterado depois de criado.
+                </div>
+              ) : null}
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Título <span style={{ color: 'var(--red)' }}>*</span></Form.Label>
@@ -205,9 +297,33 @@ const Agenda = () => {
                 onChange={(e) => setForm((f) => ({ ...f, dueAt: e.target.value }))} />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Cliente <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>opcional</span></Form.Label>
+              <Form.Label>Cliente <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
+                {modoEdicao ? 'não editável' : 'opcional'}
+              </span></Form.Label>
 
-              {leadSelecionado ? (
+              {/* Em edição o vínculo é só leitura: remarcar não troca o cliente. */}
+              {modoEdicao ? (
+                eventoEditando.deal ? (
+                  <div className="wj-lead-chip" style={{ borderColor: 'var(--border)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>
+                        {eventoEditando.deal.contact?.name || 'Sem nome'}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                        {eventoEditando.deal.title || 'Caso vinculado'}
+                      </div>
+                    </div>
+                    <a href={`/admin/deals/${eventoEditando.deal.id}`}
+                      style={{ fontSize: 11, color: 'var(--accent)', flexShrink: 0 }}>
+                      Ver ficha
+                    </a>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    Sem cliente vinculado — nenhuma notificação será enviada.
+                  </div>
+                )
+              ) : leadSelecionado ? (
                 <div className="wj-lead-chip">
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{leadSelecionado.contactName || 'Sem nome'}</div>
@@ -248,14 +364,19 @@ const Agenda = () => {
                 </div>
               )}
 
-              {!leadSelecionado && TIPOS_QUE_NOTIFICAM.includes(form.type) ? (
+              {!modoEdicao && !leadSelecionado && TIPOS_QUE_NOTIFICAM.includes(form.type) ? (
                 <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 6 }}>
                   Sem cliente vinculado, o evento é criado normalmente — mas ninguém recebe confirmação no WhatsApp.
                 </div>
               ) : null}
-              {leadSelecionado && !TIPOS_QUE_NOTIFICAM.includes(form.type) ? (
+              {!modoEdicao && leadSelecionado && !TIPOS_QUE_NOTIFICAM.includes(form.type) ? (
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>
                   Tarefa é compromisso interno: o cliente não será notificado.
+                </div>
+              ) : null}
+              {avisaRemarcacao ? (
+                <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 6 }}>
+                  O horário mudou — ao salvar, o cliente recebe aviso da remarcação no WhatsApp.
                 </div>
               ) : null}
             </Form.Group>
@@ -266,12 +387,41 @@ const Agenda = () => {
             </Form.Group>
           </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <WjButton variant="outline" onClick={fecharModal}>Cancelar</WjButton>
-          <WjButton onClick={handleSave} disabled={saving}>
-            {saving ? <Spinner size="sm" style={{ marginRight: 6 }} /> : null}Salvar
-          </WjButton>
+        <Modal.Footer style={{ justifyContent: 'space-between' }}>
+          <div>
+            {modoEdicao && !confirmarCancelar ? (
+              <button type="button" className="wj-btn-perigo" onClick={() => setConfirmarCancelar(true)}>
+                Cancelar evento
+              </button>
+            ) : null}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <WjButton variant="outline" onClick={fecharModal}>Fechar</WjButton>
+            <WjButton onClick={handleSave} disabled={saving || excluindo}>
+              {saving ? <Spinner size="sm" style={{ marginRight: 6 }} /> : null}
+              {modoEdicao ? 'Salvar alterações' : 'Salvar'}
+            </WjButton>
+          </div>
         </Modal.Footer>
+
+        {/* Confirmação do cancelamento — inline, para não usar window.confirm */}
+        {confirmarCancelar ? (
+          <div className="wj-confirma-cancelar">
+            <div style={{ fontSize: 13, marginBottom: 4 }}>Cancelar este evento?</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>
+              {eventoEditando?.deal && TIPOS_QUE_NOTIFICAM.includes(eventoEditando.type)
+                ? 'O evento sai do calendário e o cliente recebe aviso do cancelamento no WhatsApp. Não dá para desfazer.'
+                : 'O evento sai do calendário. Não dá para desfazer.'}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="wj-btn-perigo wj-btn-perigo-solido"
+                onClick={handleCancelarEvento} disabled={excluindo}>
+                {excluindo ? 'Cancelando…' : 'Sim, cancelar evento'}
+              </button>
+              <WjButton variant="outline" onClick={() => setConfirmarCancelar(false)}>Voltar</WjButton>
+            </div>
+          </div>
+        ) : null}
       </Modal>
 
       <style jsx global>{`
@@ -325,6 +475,22 @@ const Agenda = () => {
         .wj-lead-item + .wj-lead-item { border-top: 1px solid var(--border); }
         .wj-lead-item:hover { background: var(--bg); }
         .wj-lead-vazio { font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
+
+        /* ação destrutiva do modal de edição */
+        .wj-btn-perigo {
+          background: none; border: 1px solid var(--red, #e5534b); color: var(--red, #e5534b);
+          border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer;
+        }
+        .wj-btn-perigo:hover { background: rgba(229, 83, 75, .12); }
+        .wj-btn-perigo-solido {
+          background: var(--red, #e5534b); color: #fff; border-color: transparent;
+        }
+        .wj-btn-perigo-solido:hover { filter: brightness(1.08); }
+        .wj-btn-perigo:disabled { opacity: .6; cursor: default; }
+        .wj-confirma-cancelar {
+          border-top: 1px solid var(--border); padding: 14px 16px;
+          background: rgba(229, 83, 75, .06);
+        }
       `}</style>
     </Fragment>
   );

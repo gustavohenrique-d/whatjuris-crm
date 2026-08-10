@@ -11,7 +11,11 @@ const { prismaMock, waMock } = vi.hoisted(() => ({
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 vi.mock('@/lib/whatsapp/send', () => ({ sendWhatsappMessage: waMock.sendWhatsappMessage }));
 
-import { montarMensagemAgenda, notificarAgendamento } from '@/lib/whatsapp/notificar-agenda';
+import {
+  montarMensagemAgenda, notificarAgendamento,
+  montarMensagemRemarcacao, notificarRemarcacao,
+  montarMensagemCancelamento, notificarCancelamento,
+} from '@/lib/whatsapp/notificar-agenda';
 
 // 11/08/2026 14:00 em Brasília
 const QUANDO = new Date('2026-08-11T17:00:00.000Z');
@@ -124,5 +128,117 @@ describe('notificarAgendamento — quando envia', () => {
     const r = await notificarAgendamento({ activity: evento() });
     expect(r).toMatchObject({ skipped: true, motivo: 'erro_envio' });
     expect(r.erro).toBe('Meta fora do ar');
+  });
+});
+
+// 12/08/2026 09:30 em Brasília — o novo horário nos testes de remarcação.
+const NOVO = new Date('2026-08-12T12:30:00.000Z');
+
+describe('montarMensagemRemarcacao — função pura', () => {
+  const msg = montarMensagemRemarcacao({
+    nome: 'Gustavo', orgName: 'Bezerra & Nabarrete', tipo: 'MEETING',
+    dueAtAntigo: QUANDO, dueAtNovo: NOVO,
+  });
+
+  it('identifica a mudança e o cliente', () => {
+    expect(msg).toContain('🔄 *Consulta remarcada*');
+    expect(msg).toContain('Olá, Gustavo!');
+    expect(msg).toContain('escritório Bezerra & Nabarrete');
+  });
+
+  it('mostra o horário antigo E o novo, ambos em Brasília', () => {
+    expect(msg).toContain('❌ Antes: 11/08/2026 às 14:00');
+    expect(msg).toContain('✅ Agora: 12/08/2026 às 09:30');
+    expect(msg).not.toContain('17:00');
+    expect(msg).not.toContain('12:30');
+  });
+
+  it('usa o rótulo do tipo em minúscula na frase', () => {
+    expect(msg).toContain('Sua reunião com o escritório');
+    expect(montarMensagemRemarcacao({ tipo: 'HEARING', dueAtAntigo: QUANDO, dueAtNovo: NOVO }))
+      .toContain('Sua audiência com');
+  });
+});
+
+describe('montarMensagemCancelamento — função pura', () => {
+  const msg = montarMensagemCancelamento({
+    nome: 'Gustavo', orgName: 'Bezerra & Nabarrete', tipo: 'CALL', dueAt: QUANDO,
+  });
+
+  it('avisa do cancelamento com o horário que valia', () => {
+    expect(msg).toContain('❌ *Consulta cancelada*');
+    expect(msg).toContain('Sua ligação com o escritório Bezerra & Nabarrete');
+    expect(msg).toContain('marcada para 11/08/2026 às 14:00 foi cancelada');
+  });
+
+  it('promete retorno em vez do rodapé padrão', () => {
+    expect(msg.trim().endsWith('Entraremos em contato para remarcar.')).toBe(true);
+  });
+});
+
+describe('notificarRemarcacao', () => {
+  it('envia com o texto de remarcação', async () => {
+    const r = await notificarRemarcacao({
+      activity: evento({ dueAt: NOVO }), dueAtAntigo: QUANDO,
+    });
+    expect(r).toEqual({ sent: true });
+    const arg = waMock.sendWhatsappMessage.mock.calls[0][0];
+    expect(arg.to).toBe('5513978015937');
+    expect(arg.text).toContain('remarcada');
+    expect(arg.text).toContain('11/08/2026 às 14:00');
+    expect(arg.text).toContain('12/08/2026 às 09:30');
+  });
+
+  it('sem horário antigo não envia', async () => {
+    const r = await notificarRemarcacao({ activity: evento({ dueAt: NOVO }), dueAtAntigo: null });
+    expect(r).toMatchObject({ skipped: true, motivo: 'sem_horario_antigo' });
+    expect(waMock.sendWhatsappMessage).not.toHaveBeenCalled();
+  });
+
+  it('respeita as mesmas guardas da criação', async () => {
+    const semDeal = await notificarRemarcacao({ activity: evento({ dealId: null, dueAt: NOVO }), dueAtAntigo: QUANDO });
+    expect(semDeal).toMatchObject({ skipped: true, motivo: 'sem_deal' });
+
+    const task = await notificarRemarcacao({ activity: evento({ type: 'TASK', dueAt: NOVO }), dueAtAntigo: QUANDO });
+    expect(task).toMatchObject({ skipped: true, motivo: 'tipo_interno' });
+
+    prismaMock.deal.findFirst.mockResolvedValue({ contact: { id: 'c1', name: 'X', whatsapp: null } });
+    const semZap = await notificarRemarcacao({ activity: evento({ dueAt: NOVO }), dueAtAntigo: QUANDO });
+    expect(semZap).toMatchObject({ skipped: true, motivo: 'sem_whatsapp' });
+
+    expect(waMock.sendWhatsappMessage).not.toHaveBeenCalled();
+  });
+
+  it('falha do WhatsApp NÃO propaga', async () => {
+    waMock.sendWhatsappMessage.mockRejectedValue(new Error('Meta fora do ar'));
+    const r = await notificarRemarcacao({ activity: evento({ dueAt: NOVO }), dueAtAntigo: QUANDO });
+    expect(r).toMatchObject({ skipped: true, motivo: 'erro_envio' });
+  });
+});
+
+describe('notificarCancelamento', () => {
+  it('envia com o texto de cancelamento', async () => {
+    const r = await notificarCancelamento({ activity: evento() });
+    expect(r).toEqual({ sent: true });
+    const arg = waMock.sendWhatsappMessage.mock.calls[0][0];
+    expect(arg.text).toContain('cancelada');
+    expect(arg.text).toContain('11/08/2026 às 14:00');
+    expect(arg.dealId).toBe(DEAL_ID);
+  });
+
+  it('respeita as mesmas guardas da criação', async () => {
+    const semDeal = await notificarCancelamento({ activity: evento({ dealId: null }) });
+    expect(semDeal).toMatchObject({ skipped: true, motivo: 'sem_deal' });
+
+    const task = await notificarCancelamento({ activity: evento({ type: 'TASK' }) });
+    expect(task).toMatchObject({ skipped: true, motivo: 'tipo_interno' });
+
+    expect(waMock.sendWhatsappMessage).not.toHaveBeenCalled();
+  });
+
+  it('falha do WhatsApp NÃO propaga', async () => {
+    waMock.sendWhatsappMessage.mockRejectedValue(new Error('rate limit'));
+    const r = await notificarCancelamento({ activity: evento() });
+    expect(r).toMatchObject({ skipped: true, motivo: 'erro_envio', erro: 'rate limit' });
   });
 });
