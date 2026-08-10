@@ -20,6 +20,33 @@ describe('buildLawyerNotification — lead_qualified', () => {
   });
 });
 
+describe('buildLawyerNotification — lead_disqualified', () => {
+  const out = buildLawyerNotification({
+    event: 'lead_disqualified',
+    data: { name: 'Carlos Souza', whatsapp: '5511988887777', area: 'Tributário', motivo: 'Fora das áreas de atuação do escritório.' },
+  });
+
+  it('subject inclui o nome e sinaliza o descarte', () => {
+    expect(out.subject).toContain('Carlos Souza');
+    expect(out.subject).toContain('descartado');
+  });
+  it('whatsapp segue o formato "Lead descartado — Nome (Área) — Motivo"', () => {
+    expect(out.whatsappText).toContain('Lead descartado — Carlos Souza (Tributário)');
+    expect(out.whatsappText).toContain('Fora das áreas de atuação do escritório.');
+    expect(out.whatsappText).toContain('5511988887777');
+  });
+  it('e-mail traz os dados e o motivo', () => {
+    for (const campo of ['Carlos Souza', '5511988887777', 'Tributário', 'Fora das áreas de atuação do escritório.']) {
+      expect(out.emailHtml).toContain(campo);
+    }
+  });
+  it('sem motivo cai em placeholder seguro', () => {
+    const semMotivo = buildLawyerNotification({ event: 'lead_disqualified', data: { name: 'Ana' } });
+    expect(semMotivo.whatsappText).toContain('*Motivo:* —');
+    expect(semMotivo.emailHtml).toContain('não informada'); // área
+  });
+});
+
 describe('buildLawyerNotification — ai_failure_takeover', () => {
   const out = buildLawyerNotification({
     event: 'ai_failure_takeover',

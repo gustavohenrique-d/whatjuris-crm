@@ -2,13 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import path from 'path';
 
-const { prismaMock, ctrlMock, idemMock } = vi.hoisted(() => ({
+const { prismaMock, ctrlMock, idemMock, notifyMock } = vi.hoisted(() => ({
   prismaMock: {
     contact: { findFirst: vi.fn(), update: vi.fn() },
     deal: { findFirst: vi.fn(), update: vi.fn() },
   },
   ctrlMock: { isBlocked: vi.fn() },
   idemMock: { isDuplicate: vi.fn(), register: vi.fn() },
+  notifyMock: { notifyLawyer: vi.fn() },
 }));
 prismaMock.$transaction = async (fn) => fn(prismaMock);
 
@@ -20,6 +21,7 @@ vi.mock('@/lib/conversations/control', () => ({
 }));
 vi.mock('@/lib/webhooks/idempotency', () => ({ isDuplicate: idemMock.isDuplicate, register: idemMock.register }));
 vi.mock('@/lib/activities/record', () => ({ recordAiAction: vi.fn() }));
+vi.mock('@/lib/notifications/lawyer', () => ({ notifyLawyer: notifyMock.notifyLawyer }));
 
 import triageHandler from '@/pages/api/internal/deals/triage';
 import { sessionKey } from '@/lib/triage/session';
@@ -49,7 +51,14 @@ beforeEach(() => {
   ctrlMock.isBlocked.mockResolvedValue({ blocked: false, controlVersion: 0 });
   idemMock.isDuplicate.mockResolvedValue(false);
   idemMock.register.mockResolvedValue({ created: true });
+  notifyMock.notifyLawyer.mockResolvedValue({ email: true, whatsapp: false });
 });
+
+// Extrai o payload do notifyLawyer disparado para um evento, ou undefined.
+function notificacao(evento) {
+  const call = notifyMock.notifyLawyer.mock.calls.find((c) => c[0].event === evento);
+  return call?.[0];
+}
 
 describe('POST /api/internal/deals/triage', () => {
   it('sem secret → 401', async () => {
@@ -105,6 +114,64 @@ describe('POST /api/internal/deals/triage', () => {
     // não qualificado → sem qualified_at
     expect(data).not.toHaveProperty('qualifiedAt');
     expect(prismaMock.contact.update).not.toHaveBeenCalled(); // sem nome, não toca no contato
+  });
+});
+
+describe('POST /api/internal/deals/triage — notificação de descarte', () => {
+  // Lead incompleto: não qualifica, então respeita o 'desqualificado' da LLM.
+  const descarte = (over = {}) => goodBody({
+    fase_triagem: 'desqualificado',
+    dados_extraidos: { nome: 'Carlos Souza', area: null, resumo_caso: null, urgencia: null },
+    ...over,
+  });
+
+  it('coletando_dados → desqualificado notifica o advogado com o motivo', async () => {
+    const r = res();
+    await triageHandler(req(descarte({ motivo_desqualificacao: 'Fora das áreas de atuação.' })), r);
+    expect(r.statusCode).toBe(200);
+    expect(r.body.fase_triagem).toBe('desqualificado');
+    expect(notificacao('lead_disqualified')).toMatchObject({
+      data: { name: 'Carlos Souza', whatsapp: '5511999999999', motivo: 'Fora das áreas de atuação.' },
+    });
+  });
+
+  it('sem motivo explícito, cai no resumo_caso', async () => {
+    const r = res();
+    await triageHandler(req(descarte({
+      dados_extraidos: { nome: 'Carlos Souza', area: null, resumo_caso: 'Cliente já tem advogado.', urgencia: null },
+    })), r);
+    expect(notificacao('lead_disqualified').data.motivo).toBe('Cliente já tem advogado.');
+  });
+
+  it('sem motivo e sem resumo, usa texto padrão', async () => {
+    const r = res();
+    await triageHandler(req(descarte()), r);
+    expect(notificacao('lead_disqualified').data.motivo).toBe('Não informado pelo agente');
+  });
+
+  it('deal JÁ desqualificado → não notifica de novo', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue({
+      id: 'd1', legalArea: null, urgencia: null, faseTriage: 'desqualificado', qualifiedAt: null,
+    });
+    const r = res();
+    await triageHandler(req(descarte({ source_message_id: 'wamid.T2' })), r);
+    expect(r.statusCode).toBe(200);
+    expect(notificacao('lead_disqualified')).toBeUndefined();
+  });
+
+  it('qualificado continua notificando lead_qualified e não dispara descarte', async () => {
+    const r = res();
+    await triageHandler(req(goodBody()), r);
+    expect(notificacao('lead_qualified')).toMatchObject({ data: { name: 'João da Silva', area: 'trabalhista' } });
+    expect(notificacao('lead_disqualified')).toBeUndefined();
+  });
+
+  it('falha na notificação não derruba a resposta', async () => {
+    notifyMock.notifyLawyer.mockRejectedValue(new Error('resend fora do ar'));
+    const r = res();
+    await triageHandler(req(descarte()), r);
+    expect(r.statusCode).toBe(200);
+    expect(r.body.updated).toBe(true);
   });
 });
 

@@ -19,6 +19,11 @@
     },
     "mensagem_para_cliente": { "type": "string", "minLength": 1 },
     "fase_triagem": { "type": "string", "enum": ["coletando_dados", "qualificado", "desqualificado"] },
+    "motivo_desqualificacao": {
+      "type": ["string", "null"],
+      "maxLength": 300,
+      "description": "Frase curta explicando o descarte. Preenchido apenas quando fase_triagem = 'desqualificado'; null nos demais casos."
+    },
     "lead_qualificado": { "type": "boolean" }
   }
 }

@@ -77,6 +77,7 @@ e sem cercas de código, exatamente neste formato:
 {
   "mensagem_para_cliente": "<a próxima mensagem a enviar ao cliente>",
   "fase_triagem": "coletando_dados" | "qualificado" | "desqualificado",
+  "motivo_desqualificacao": "<frase curta explicando o descarte, ou null>",
   "dados_extraidos": {
     "nome": "<nome completo ou null>",
     "area": "<uma das áreas de atuação, 'Não identificado' ou null>",
@@ -88,6 +89,12 @@ e sem cercas de código, exatamente neste formato:
 
 - "fase_triagem" aceita apenas: coletando_dados, qualificado, desqualificado.
 - "mensagem_para_cliente" é obrigatório e nunca vazio.
+- "motivo_desqualificacao" só é preenchido quando "fase_triagem" for
+  "desqualificado" — uma frase curta e objetiva, no máximo 300 caracteres,
+  dizendo POR QUE o caso foi descartado (ex.: "Fora das áreas de atuação do
+  escritório", "Cliente informou que já tem advogado constituído"). Nas demais
+  fases o valor DEVE ser null. Esse texto vai para o advogado, não para o
+  cliente: seja factual e não inclua julgamento sobre a pessoa.
 - Preencha com null os campos ainda não coletados. Enquanto o cliente não tiver
   descrito o caso, "area" DEVE ser null.
 - A qualificação final é RECALCULADA pelo backend — preencha "lead_qualificado"

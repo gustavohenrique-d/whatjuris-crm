@@ -24,6 +24,9 @@ const schema = z.object({
   buffered_message_ids: z.array(z.string()).optional().default([]),
   expected_control_version: z.number().int().optional().nullable(),
   fase_triagem: z.enum(['coletando_dados', 'qualificado', 'desqualificado']).optional(),
+  // Motivo do descarte — top-level de propósito: normalizeDados() filtra
+  // dados_extraidos por whitelist e descartaria a chave silenciosamente.
+  motivo_desqualificacao: z.string().trim().max(300).optional().nullable(),
   dados_extraidos: z.object({
     nome: z.string().nullable().optional(),
     area: z.string().nullable().optional(),
@@ -105,6 +108,11 @@ export default async function handler(req, res) {
     // qualified_at só na PRIMEIRA qualificação
     if (qualified && !deal.qualifiedAt) data.qualifiedAt = new Date();
 
+    // Transição para desqualificado — capturada ANTES do update, que sobrescreve
+    // faseTriage. Evita notificar de novo a cada triagem de um lead já descartado.
+    const virouDesqualificado =
+      faseTriagem === 'desqualificado' && deal.faseTriage !== 'desqualificado';
+
     await prisma.$transaction(async (tx) => {
       await tx.deal.update({ where: { id: deal.id }, data });
 
@@ -131,10 +139,12 @@ export default async function handler(req, res) {
 
     await register(idemKey, whatsapp);
 
-    // Notifica o advogado na PRIMEIRA qualificação (best-effort, não bloqueia a
-    // resposta; roda no servidor persistente do Render).
+    // Notifica o advogado (best-effort, não bloqueia a resposta; roda no
+    // servidor persistente do Render).
+    const nome = dados.nome && dados.nome.trim().length >= 3 ? dados.nome.trim() : contact.name;
+
+    // ...na PRIMEIRA qualificação.
     if (qualified && !deal.qualifiedAt) {
-      const nome = dados.nome && dados.nome.trim().length >= 3 ? dados.nome.trim() : contact.name;
       notifyLawyer({
         event: 'lead_qualified',
         data: {
@@ -143,6 +153,19 @@ export default async function handler(req, res) {
           area: data.legalArea ?? deal.legalArea,
           urgencia: dados.urgencia ?? deal.urgencia,
           resumo: dados.resumo_caso,
+        },
+      }).catch((err) => console.error('[triage] notifyLawyer falhou:', err.message));
+    }
+
+    // ...e quando a triagem descarta o lead.
+    if (virouDesqualificado) {
+      notifyLawyer({
+        event: 'lead_disqualified',
+        data: {
+          name: nome,
+          whatsapp,
+          area: data.legalArea ?? deal.legalArea,
+          motivo: d.motivo_desqualificacao || dados.resumo_caso || 'Não informado pelo agente',
         },
       }).catch((err) => console.error('[triage] notifyLawyer falhou:', err.message));
     }
