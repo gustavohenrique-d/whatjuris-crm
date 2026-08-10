@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import { withAuth, BadRequest, Forbidden } from '@/lib/auth/guard';
 import { createCalendarEvent } from '@/lib/calendar/create';
+import { notificarAgendamento } from '@/lib/whatsapp/notificar-agenda';
 
 const TIPOS_VALIDOS = ['MEETING', 'CALL', 'TASK', 'HEARING'];
 
@@ -32,6 +33,11 @@ async function handler(req, res, ctx) {
     userId: ctx.userId,
     dueAt: new Date(parsed.data.dueAt),
   });
+
+  // Avisa o cliente. Fire-and-forget: o evento já está no banco e no Google,
+  // então falha de WhatsApp não pode derrubar a criação.
+  notificarAgendamento({ activity, dealId: parsed.data.dealId })
+    .catch((err) => console.error('[agenda] notificação falhou:', err.message));
 
   return res.status(201).json({ event: activity });
 }
