@@ -121,6 +121,16 @@ describe('schedule_appointment — validações antes de criar', () => {
     expect(calendarMock.createCalendarEvent).not.toHaveBeenCalled();
   });
 
+  it('duracaoMin null cai no padrão de 60min (o workflow envia null)', async () => {
+    // Regressao real: z.number().optional() rejeita null e a acao devolvia 400,
+    // que o M06 interpretava como "fora do expediente".
+    const r = res();
+    await handler(req(base({ duracaoMin: null, notificarCliente: false })), r);
+    expect(r.statusCode).toBe(200);
+    expect(r.body.dueAt).toBe('2099-08-11T17:00:00.000Z');
+    expect(r.body.endAt).toBe('2099-08-11T18:00:00.000Z');
+  });
+
   it('duracaoMin define o fim do evento', async () => {
     const r = res();
     await handler(req(base({ duracaoMin: 30, notificarCliente: false })), r);

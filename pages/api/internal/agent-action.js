@@ -39,7 +39,9 @@ const schema = z.object({
   data: z.string().trim().optional(),
   hora: z.string().trim().optional(),
   tipo: z.enum(['MEETING', 'CALL', 'HEARING']).optional().default('MEETING'),
-  duracaoMin: z.number().int().min(15).max(480).optional(),
+  // .nullable() porque o agente omite duracao_min e o workflow envia null
+  // explicito; .optional() sozinho aceita undefined mas rejeita null.
+  duracaoMin: z.number().int().min(15).max(480).optional().nullable(),
   // false quando quem avisa o cliente é o M05 (envio humanizado). Default true
   // preserva o comportamento de quem chama a ação direto.
   notificarCliente: z.boolean().optional().default(true),
