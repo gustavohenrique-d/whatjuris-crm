@@ -1,0 +1,733 @@
+{
+  "name": "Modulo 06 - Agendamento",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "modulo-06-agendamento",
+        "options": {}
+      },
+      "id": "Entrada - Modulo 4 (Webhook Interno)",
+      "name": "Entrada - Modulo 4 (Webhook Interno)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        300
+      ],
+      "webhookId": "modulo-06-agendamento"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0",
+              "name": "instance_name",
+              "value": "={{ $json.body?.instance_name ?? $json.instance_name }}",
+              "type": "string"
+            },
+            {
+              "id": "a1",
+              "name": "chat_id",
+              "value": "={{ $json.body?.chat_id ?? $json.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "source_message_id",
+              "value": "={{ $json.body?.source_message_id ?? $json.source_message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "message",
+              "value": "={{ $json.body?.message ?? $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "session_key",
+              "value": "={{ 'chat:v1:' + ($json.body?.instance_name ?? $json.instance_name) + ':' + ($json.body?.chat_id ?? $json.chat_id) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Set - Preparar Sessao",
+      "name": "Set - Preparar Sessao",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://whatjuris-crm.onrender.com/api/internal/deals/by-chat?instance_name={{ $('Set - Preparar Sessao').item.json.instance_name }}&chat_id={{ $('Set - Preparar Sessao').item.json.chat_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "HTTP - Carregar Deal do CRM",
+      "name": "HTTP - Carregar Deal do CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        60,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.deal_id != null }}",
+              "rightValue": "={{ true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "IF - Deal Encontrado?",
+      "name": "IF - Deal Encontrado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        280,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $('Set - Preparar Sessao').item.json.instance_name }}/{{ $('Set - Preparar Sessao').item.json.chat_id }}/control",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "HTTP - Revalidar Human Takeover",
+      "name": "HTTP - Revalidar Human Takeover",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ ($json.body?.human_takeover ?? $json.human_takeover) }}",
+              "rightValue": "={{ false }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "IF - IA Autorizada?",
+      "name": "IF - IA Autorizada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://whatjuris-crm.onrender.com/api/internal/agent-action",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { action: 'get_history', dealId: $('HTTP - Carregar Deal do CRM').item.json.deal_id, limit: 20 } }}"
+      },
+      "id": "HTTP - Carregar Historico",
+      "name": "HTTP - Carregar Historico",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://whatjuris-crm.onrender.com/api/internal/run-agent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { agent: 'agendador', dealId: $('HTTP - Carregar Deal do CRM').item.json.deal_id, message: $('Set - Preparar Sessao').item.json.message, history: ($json.messages || []).map(m => ({ role: m.role, content: m.content })) } }}"
+      },
+      "id": "HTTP - Chamar Agente Agendador",
+      "name": "HTTP - Chamar Agente Agendador",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Detecta AGENDAMENTO_CONFIRMADO na resposta do Agente Agendador.\n// Regra critica: quando o sinal existe, o texto cru contem JSON e NAO\n// pode ser enviado ao cliente.\nconst ctx = $('Set - Preparar Sessao').item.json;\nconst texto = String($json.response ?? '');\nconst response_id = 'm06-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);\nconst base = { ...ctx, response_id };\n\nconst m = /AGENDAMENTO_CONFIRMADO:\\s*(\\{[\\s\\S]*?\\})/.exec(texto);\nif (!m) {\n  return [{ json: { ...base, agendou: false, mensagem_para_cliente: texto } }];\n}\n\nconst limpo = texto.replace(m[0], '').trim();\nlet p;\ntry {\n  p = JSON.parse(m[1]);\n} catch (e) {\n  // Sinal malformado: degrada para conversa, sem o prefixo tecnico.\n  return [{ json: { ...base, agendou: false,\n    mensagem_para_cliente: limpo || 'Pode confirmar o melhor dia e horario para voce?' } }];\n}\n\nreturn [{ json: { ...base, agendou: true, data: p.data, hora: p.hora,\n  tipo: p.tipo || 'MEETING', duracao_min: p.duracao_min ?? null } }];"
+      },
+      "id": "Code - Detectar AGENDAMENTO_CONFIRMADO",
+      "name": "Code - Detectar AGENDAMENTO_CONFIRMADO",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.agendou }}",
+              "rightValue": "={{ true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "IF - Agendamento Confirmado?",
+      "name": "IF - Agendamento Confirmado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://whatjuris-crm.onrender.com/api/internal/agent-action",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { action: 'schedule_appointment', dealId: $('HTTP - Carregar Deal do CRM').item.json.deal_id, agentName: 'Agente Agendador', data: $('Code - Detectar AGENDAMENTO_CONFIRMADO').item.json.data, hora: $('Code - Detectar AGENDAMENTO_CONFIRMADO').item.json.hora, tipo: $('Code - Detectar AGENDAMENTO_CONFIRMADO').item.json.tipo, duracaoMin: $('Code - Detectar AGENDAMENTO_CONFIRMADO').item.json.duracao_min, notificarCliente: false } }}"
+      },
+      "id": "HTTP - Criar Agendamento",
+      "name": "HTTP - Criar Agendamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.scheduled }}",
+              "rightValue": "={{ true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "IF - Agendamento Aceito?",
+      "name": "IF - Agendamento Aceito?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0",
+              "name": "mensagem_para_cliente",
+              "value": "={{ '✅ Consulta agendada para ' + $json.dataFormatada + '. Ate la!' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Set - Confirmacao para o Cliente",
+      "name": "Set - Confirmacao para o Cliente",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2260,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0",
+              "name": "mensagem_para_cliente",
+              "value": "=Nao consegui reservar esse horario porque esta fora do nosso expediente. Pode escolher outro dia ou horario dentro do atendimento?",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Set - Recusa para o Cliente",
+      "name": "Set - Recusa para o Cliente",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0",
+              "name": "mensagem_para_cliente",
+              "value": "={{ $json.mensagem_para_cliente }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Set - Resposta Normal",
+      "name": "Set - Resposta Normal",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0",
+              "name": "mensagem_para_cliente",
+              "value": "={{ $json.mensagem_para_cliente }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Set - Mensagem Final",
+      "name": "Set - Mensagem Final",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2480,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://whatjuris-crm.onrender.com/api/conversations/{{ $('Set - Preparar Sessao').item.json.instance_name }}/{{ $('Set - Preparar Sessao').item.json.chat_id }}/control",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "HTTP - Revalidar Takeover (2)",
+      "name": "HTTP - Revalidar Takeover (2)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-production-691d.up.railway.app/webhook/modulo-05-envio",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "={{ $env.WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { agent_status: 'success', allow_send: true, instance_name: $('Set - Preparar Sessao').item.json.instance_name, chat_id: $('Set - Preparar Sessao').item.json.chat_id, message_id: $('Set - Preparar Sessao').item.json.source_message_id, session_key: $('Set - Preparar Sessao').item.json.session_key, response_id: $('Code - Detectar AGENDAMENTO_CONFIRMADO').item.json.response_id, mensagem_para_cliente: $('Set - Mensagem Final').item.json.mensagem_para_cliente, expected_control_version: $('HTTP - Carregar Deal do CRM').item.json.control_version } }}"
+      },
+      "id": "HTTP - Encaminhar para Modulo 05",
+      "name": "HTTP - Encaminhar para Modulo 05",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2700,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Entrada - Modulo 4 (Webhook Interno)": {
+      "main": [
+        [
+          {
+            "node": "Set - Preparar Sessao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Preparar Sessao": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Carregar Deal do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Carregar Deal do CRM": {
+      "main": [
+        [
+          {
+            "node": "IF - Deal Encontrado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Deal Encontrado?": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Revalidar Human Takeover",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HTTP - Revalidar Human Takeover": {
+      "main": [
+        [
+          {
+            "node": "IF - IA Autorizada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - IA Autorizada?": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Carregar Historico",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HTTP - Carregar Historico": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Chamar Agente Agendador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Chamar Agente Agendador": {
+      "main": [
+        [
+          {
+            "node": "Code - Detectar AGENDAMENTO_CONFIRMADO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Detectar AGENDAMENTO_CONFIRMADO": {
+      "main": [
+        [
+          {
+            "node": "IF - Agendamento Confirmado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Agendamento Confirmado?": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Criar Agendamento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Resposta Normal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Criar Agendamento": {
+      "main": [
+        [
+          {
+            "node": "IF - Agendamento Aceito?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Agendamento Aceito?": {
+      "main": [
+        [
+          {
+            "node": "Set - Confirmacao para o Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Recusa para o Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Confirmacao para o Cliente": {
+      "main": [
+        [
+          {
+            "node": "Set - Mensagem Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Recusa para o Cliente": {
+      "main": [
+        [
+          {
+            "node": "Set - Mensagem Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Resposta Normal": {
+      "main": [
+        [
+          {
+            "node": "Set - Mensagem Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Mensagem Final": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Revalidar Takeover (2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Revalidar Takeover (2)": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Encaminhar para Modulo 05",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

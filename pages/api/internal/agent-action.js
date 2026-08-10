@@ -40,6 +40,9 @@ const schema = z.object({
   hora: z.string().trim().optional(),
   tipo: z.enum(['MEETING', 'CALL', 'HEARING']).optional().default('MEETING'),
   duracaoMin: z.number().int().min(15).max(480).optional(),
+  // false quando quem avisa o cliente é o M05 (envio humanizado). Default true
+  // preserva o comportamento de quem chama a ação direto.
+  notificarCliente: z.boolean().optional().default(true),
 });
 
 function verifySecret(req) {
@@ -63,7 +66,7 @@ export default async function handler(req, res) {
   }
 
   const { action, dealId, agentName, stageKey, title, content, metadata, message, phone, legalArea, priority,
-    data, hora, tipo, duracaoMin } = parsed.data;
+    data, hora, tipo, duracaoMin, notificarCliente } = parsed.data;
 
   const deal = await prisma.deal.findFirst({
     where: { id: dealId, deletedAt: null },
@@ -337,16 +340,20 @@ export default async function handler(req, res) {
         metadata: { ...(metadata || {}), agendadoPorAgente: true },
       });
 
+      const dataFormatada = formatarBR(inicio);
+
       // Confirmação ao cliente. O número vem SEMPRE do banco — aceitar do
       // payload deixaria a LLM escolher o destinatário da mensagem.
+      // Com notificarCliente=false quem avisa é o M05, e enviar aqui faria o
+      // cliente receber a mesma confirmação duas vezes.
       const to = deal.contact?.whatsapp;
       let confirmacaoEnviada = false;
 
-      if (to) {
+      if (notificarCliente && to) {
         try {
           const envio = await sendWhatsappMessage({
             to,
-            text: `✅ Consulta agendada para ${formatarBR(inicio)}.`,
+            text: `✅ Consulta agendada para ${dataFormatada}.`,
             dealId,
             contactId: deal.contact?.id,
           });
@@ -363,6 +370,7 @@ export default async function handler(req, res) {
         googleEventId: activity.metadata?.googleEventId ?? null,
         dueAt: inicio.toISOString(),
         endAt: fim.toISOString(),
+        dataFormatada, // o M05 monta a mensagem a partir daqui
         confirmacaoEnviada,
       });
     }
