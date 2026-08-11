@@ -218,8 +218,15 @@ const Agenda = () => {
     if (!eventoEditando) return;
     setExcluindo(true);
     try {
-      await axios.delete(`/api/agenda/events/${eventoEditando.id}/`);
+      const { data } = await axios.delete(`/api/agenda/events/${eventoEditando.id}/`);
       toast.success('Evento cancelado.');
+
+      // Único skip do funil que o advogado precisa ver: sem isto o card fica
+      // parado em "Consulta agendada" sem explicação e parece defeito. Os
+      // demais motivos são esperados ou irrelevantes e ficam só no log.
+      if (data?.funil?.motivo === 'outro_evento_futuro') {
+        toast.info('O lead segue em Consulta agendada — ainda há outra consulta marcada.');
+      }
       fecharModal();
       calendarRef.current?.getApi().refetchEvents();
     } catch (err) {

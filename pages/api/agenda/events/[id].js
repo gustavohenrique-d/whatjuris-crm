@@ -97,10 +97,21 @@ async function handler(req, res, ctx) {
     // Devolve o card ao funil. Depois do delete de propósito: a guarda de
     // "outro compromisso futuro" lá dentro não pode contar o evento que
     // acabou de ser cancelado.
-    voltarDeConsultaAgendada({ dealId: event.dealId, tipo: event.type, userId: ctx.userId })
-      .catch((err) => console.error('[agenda] movimento de etapa falhou:', err.message));
+    //
+    // Aqui é `await`, ao contrário da notificação: a UI precisa do motivo do
+    // skip para explicar por que o card não voltou. A função não lança (todo o
+    // corpo dela é try/catch), e o try aqui é rede de segurança — o evento JÁ
+    // foi apagado, então nada abaixo pode virar erro na tela do advogado.
+    let funil = null;
+    try {
+      funil = await voltarDeConsultaAgendada({
+        dealId: event.dealId, tipo: event.type, userId: ctx.userId,
+      });
+    } catch (err) {
+      console.error('[agenda] movimento de etapa falhou:', err.message);
+    }
 
-    return res.status(200).json({ message: 'Evento removido.' });
+    return res.status(200).json({ message: 'Evento removido.', funil });
   }
 }
 

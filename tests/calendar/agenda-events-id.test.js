@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { prismaMock, googleMock, notifMock, guardMock } = vi.hoisted(() => ({
+const { prismaMock, googleMock, notifMock, guardMock, funilMock } = vi.hoisted(() => ({
   prismaMock: {
     activity: { findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
     organization: { findFirst: vi.fn() },
   },
   googleMock: { syncToGoogle: vi.fn(), deleteFromGoogle: vi.fn() },
   notifMock: { notificarRemarcacao: vi.fn(), notificarCancelamento: vi.fn() },
+  funilMock: { voltarDeConsultaAgendada: vi.fn() },
   guardMock: { ctx: null },
 }));
 
@@ -18,6 +19,9 @@ vi.mock('@/lib/calendar/google', () => ({
 vi.mock('@/lib/whatsapp/notificar-agenda', () => ({
   notificarRemarcacao: notifMock.notificarRemarcacao,
   notificarCancelamento: notifMock.notificarCancelamento,
+}));
+vi.mock('@/lib/pipeline/mover-por-agenda', () => ({
+  voltarDeConsultaAgendada: funilMock.voltarDeConsultaAgendada,
 }));
 vi.mock('@/lib/auth/guard', () => {
   class HttpError extends Error {
@@ -68,6 +72,7 @@ beforeEach(() => {
   prismaMock.organization.findFirst.mockResolvedValue({ settings: { googleRefreshToken: 'rt' } });
   notifMock.notificarRemarcacao.mockResolvedValue({ sent: true });
   notifMock.notificarCancelamento.mockResolvedValue({ sent: true });
+  funilMock.voltarDeConsultaAgendada.mockResolvedValue({ moved: true, de: 'consulta_agendada', para: 'qualificado' });
 });
 
 describe('PATCH /api/agenda/events/[id] — remarcação', () => {
@@ -137,6 +142,33 @@ describe('DELETE /api/agenda/events/[id] — cancelamento', () => {
     await handler(req('DELETE'), r);
     expect(r.statusCode).toBe(200);
     expect(r.body.message).toBe('Evento removido.');
+  });
+
+  it('devolve o resultado do funil na resposta (a UI precisa do motivo)', async () => {
+    const r = res();
+    await handler(req('DELETE'), r);
+    expect(funilMock.voltarDeConsultaAgendada).toHaveBeenCalledWith({
+      dealId: DEAL_ID, tipo: 'MEETING', userId: 'u1',
+    });
+    expect(r.body.funil).toEqual({ moved: true, de: 'consulta_agendada', para: 'qualificado' });
+  });
+
+  it('propaga o motivo do skip que a UI mostra', async () => {
+    funilMock.voltarDeConsultaAgendada.mockResolvedValue({ skipped: true, motivo: 'outro_evento_futuro' });
+    const r = res();
+    await handler(req('DELETE'), r);
+    expect(r.statusCode).toBe(200);
+    expect(r.body.funil.motivo).toBe('outro_evento_futuro');
+  });
+
+  it('movimento que lança NÃO derruba o cancelamento — 200 com funil null', async () => {
+    funilMock.voltarDeConsultaAgendada.mockRejectedValue(new Error('banco fora'));
+    const r = res();
+    await handler(req('DELETE'), r);
+    expect(r.statusCode).toBe(200);
+    expect(r.body.message).toBe('Evento removido.');
+    expect(r.body.funil).toBeNull();
+    expect(prismaMock.activity.delete).toHaveBeenCalledTimes(1); // o evento foi apagado mesmo assim
   });
 });
 
