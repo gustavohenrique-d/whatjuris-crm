@@ -8,6 +8,7 @@ const { prismaMock, recordMock, txMock } = vi.hoisted(() => {
       deal: { findFirst: vi.fn() },
       pipelineStage: { findFirst: vi.fn() },
       activity: { findFirst: vi.fn() },
+      dealStageHistory: { findFirst: vi.fn() },
       $transaction: vi.fn(async (fn) => fn(txMock)),
     },
     recordMock: { recordActivity: vi.fn() },
@@ -23,8 +24,8 @@ const DEAL = 'f63bafc3-c9be-4172-b305-d8a371cd19a4';
 const PIPE = '5a98ac9a-4779-406e-89ff-3bc0377b904a';
 const USER = 'f5c7e479-48a8-43ea-ba06-1e5b687e1c6e';
 
-const dealEm = (key, name) => ({
-  id: DEAL, pipelineId: PIPE, stageId: 'atual', stage: { key, name },
+const dealEm = (key, name, type = 'OPEN') => ({
+  id: DEAL, pipelineId: PIPE, stageId: `stage-${key}`, stage: { key, name, type },
 });
 const etapa = (id, name) => ({ id, name });
 
@@ -33,6 +34,7 @@ beforeEach(() => {
   prismaMock.deal.findFirst.mockResolvedValue(dealEm('qualificado', 'Qualificado'));
   prismaMock.pipelineStage.findFirst.mockResolvedValue(etapa('stage-consulta', 'Consulta agendada'));
   prismaMock.activity.findFirst.mockResolvedValue(null); // sem outro compromisso futuro
+  prismaMock.dealStageHistory.findFirst.mockResolvedValue(null);
   txMock.deal.update.mockResolvedValue({ id: DEAL });
   txMock.$executeRaw.mockResolvedValue(1);
   recordMock.recordActivity.mockResolvedValue({ id: 'act' });
@@ -71,11 +73,38 @@ describe('moverParaConsultaAgendada', () => {
     }
   });
 
-  it('lead em outra etapa → NÃO move', async () => {
-    prismaMock.deal.findFirst.mockResolvedValue(dealEm('novo_contato', 'Novo contato'));
+  it('move de QUALQUER etapa aberta, não só de Qualificado', async () => {
+    for (const [key, nome] of [
+      ['novo_contato', 'Novo contato'],
+      ['em_triagem', 'Em triagem pela IA'],
+      ['aguardando_docs', 'Aguardando documentos'],
+    ]) {
+      vi.clearAllMocks();
+      prismaMock.deal.findFirst.mockResolvedValue(dealEm(key, nome));
+      prismaMock.pipelineStage.findFirst.mockResolvedValue(etapa('stage-consulta', 'Consulta agendada'));
+      const r = await moverParaConsultaAgendada({ dealId: DEAL, tipo: 'MEETING', userId: USER });
+      expect(r).toMatchObject({ moved: true, de: key, para: 'consulta_agendada' });
+    }
+  });
+
+  it('já em consulta_agendada → nada a fazer', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(dealEm('consulta_agendada', 'Consulta agendada'));
     const r = await moverParaConsultaAgendada({ dealId: DEAL, tipo: 'MEETING', userId: USER });
-    expect(r).toMatchObject({ skipped: true, motivo: 'etapa_nao_elegivel' });
+    expect(r).toMatchObject({ skipped: true, motivo: 'ja_no_destino' });
     expect(txMock.deal.update).not.toHaveBeenCalled();
+  });
+
+  it('estado final (Descartado/Contratado) → NÃO move', async () => {
+    for (const [key, nome, type] of [
+      ['descartado', 'Descartado', 'LOST'],
+      ['contratado', 'Contratado', 'WON'],
+    ]) {
+      vi.clearAllMocks();
+      prismaMock.deal.findFirst.mockResolvedValue(dealEm(key, nome, type));
+      const r = await moverParaConsultaAgendada({ dealId: DEAL, tipo: 'MEETING', userId: USER });
+      expect(r).toMatchObject({ skipped: true, motivo: 'etapa_final' });
+      expect(txMock.deal.update).not.toHaveBeenCalled();
+    }
   });
 
   it('TASK (interno) → NÃO move e nem consulta o deal', async () => {
@@ -134,17 +163,61 @@ describe('ator do movimento', () => {
 });
 
 describe('voltarDeConsultaAgendada', () => {
+  // Devolve a etapa de origem que o histórico registrou.
+  const veioDe = (id, key, name, type = 'OPEN') => {
+    prismaMock.dealStageHistory.findFirst.mockResolvedValue({
+      fromStageId: id, createdAt: new Date('2026-08-11T16:58:36Z'),
+    });
+    prismaMock.pipelineStage.findFirst.mockResolvedValue({ id, key, name, type });
+  };
+
   beforeEach(() => {
     prismaMock.deal.findFirst.mockResolvedValue(dealEm('consulta_agendada', 'Consulta agendada'));
-    prismaMock.pipelineStage.findFirst.mockResolvedValue(etapa('stage-qualificado', 'Qualificado'));
+    veioDe('stage-qualificado', 'qualificado', 'Qualificado');
   });
 
-  it('em consulta_agendada e sem outro evento → volta para qualificado', async () => {
+  it('volta para a etapa de ORIGEM registrada no histórico', async () => {
+    veioDe('stage-novo', 'novo_contato', 'Novo contato');
     const r = await voltarDeConsultaAgendada({ dealId: DEAL, tipo: 'MEETING', userId: USER });
-    expect(r).toMatchObject({ moved: true, de: 'consulta_agendada', para: 'qualificado' });
+    expect(r).toMatchObject({ moved: true, de: 'consulta_agendada', para: 'novo_contato' });
     expect(txMock.deal.update).toHaveBeenCalledWith({
-      where: { id: DEAL }, data: { stageId: 'stage-qualificado' },
+      where: { id: DEAL }, data: { stageId: 'stage-novo' },
     });
+  });
+
+  it('consulta a entrada MAIS RECENTE em consulta_agendada', async () => {
+    await voltarDeConsultaAgendada({ dealId: DEAL, tipo: 'MEETING', userId: USER });
+    const arg = prismaMock.dealStageHistory.findFirst.mock.calls[0][0];
+    expect(arg.where).toEqual({ dealId: DEAL, toStageId: 'stage-consulta_agendada' });
+    expect(arg.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
+  });
+
+  it('após várias idas e vindas, usa a origem da última entrada', async () => {
+    // histórico: ... → qualificado → consulta → qualificado → aguardando_docs
+    //            → consulta (mais recente, veio de aguardando_docs)
+    veioDe('stage-docs', 'aguardando_docs', 'Aguardando documentos');
+    const r = await voltarDeConsultaAgendada({ dealId: DEAL, tipo: 'MEETING', userId: USER });
+    expect(r.para).toBe('aguardando_docs');
+  });
+
+  it('sem histórico de entrada → NÃO volta (não chuta etapa)', async () => {
+    prismaMock.dealStageHistory.findFirst.mockResolvedValue(null);
+    const r = await voltarDeConsultaAgendada({ dealId: DEAL, tipo: 'MEETING', userId: USER });
+    expect(r).toMatchObject({ skipped: true, motivo: 'origem_desconhecida' });
+    expect(txMock.deal.update).not.toHaveBeenCalled();
+  });
+
+  it('histórico com fromStageId nulo → NÃO volta', async () => {
+    prismaMock.dealStageHistory.findFirst.mockResolvedValue({ fromStageId: null, createdAt: new Date() });
+    const r = await voltarDeConsultaAgendada({ dealId: DEAL, tipo: 'MEETING', userId: USER });
+    expect(r).toMatchObject({ skipped: true, motivo: 'origem_desconhecida' });
+  });
+
+  it('origem é estado final → NÃO devolve (automação não fecha caso)', async () => {
+    veioDe('stage-descartado', 'descartado', 'Descartado', 'LOST');
+    const r = await voltarDeConsultaAgendada({ dealId: DEAL, tipo: 'MEETING', userId: USER });
+    expect(r).toMatchObject({ skipped: true, motivo: 'origem_final' });
+    expect(txMock.deal.update).not.toHaveBeenCalled();
   });
 
   it('lead movido manualmente para outra etapa → NÃO volta', async () => {
