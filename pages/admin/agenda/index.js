@@ -114,7 +114,13 @@ const Agenda = () => {
 
   const fetchEvents = useCallback(async (info, successCallback, failureCallback) => {
     try {
-      const { data } = await axios.get(`/api/agenda/?from=${info.startStr}&to=${info.endStr}`);
+      // encodeURIComponent é obrigatório: startStr traz o offset do fuso
+      // ("2026-08-09T00:00:00+03:00" em fuso positivo) e o "+" cru vira espaço
+      // na query string, o que faz new Date() no backend devolver Invalid Date
+      // e a listagem responder 500.
+      const from = encodeURIComponent(info.startStr);
+      const to = encodeURIComponent(info.endStr);
+      const { data } = await axios.get(`/api/agenda/?from=${from}&to=${to}`);
       const events = data.events.map((e) => ({
         id: e.id,
         title: e.deal?.contact?.name || e.contact?.name || e.title,
@@ -130,8 +136,14 @@ const Agenda = () => {
         },
       }));
       successCallback(events);
-    } catch {
-      failureCallback(new Error('Erro ao carregar eventos.'));
+    } catch (err) {
+      // Sem isto a falha é indistinguível de uma semana sem compromissos: o
+      // FullCalendar apenas desenha a grade vazia, sem erro nenhum na tela.
+      console.error('[agenda] falha ao carregar eventos:', err);
+      toast.error(
+        err.response?.data?.error || 'Não foi possível carregar os eventos da agenda.',
+      );
+      failureCallback(err instanceof Error ? err : new Error('Erro ao carregar eventos.'));
     }
   }, []);
 
@@ -240,7 +252,7 @@ const Agenda = () => {
       </div>
 
       <WjCard style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: 16 }} className="wj-agenda">
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -425,6 +437,27 @@ const Agenda = () => {
       </Modal>
 
       <style jsx global>{`
+        /* -------------------------------------------------------------------
+           Neutraliza as alturas fixas do tema do template (styles.css):
+
+             .fc .fc-view-harness      { height: 800px !important }
+             .fc-scrollgrid-sync-table { height: 771px !important }
+
+           Foram escritas para o calendário de demonstração do template, que é
+           dayGridMonth. Em timeGridWeek a segunda classe cai na linha "all-day",
+           que incha para 771px e empurra a grade de horários (527px) para fora
+           da área visível. Os eventos continuam no DOM, pintados e opacos —
+           só ficam ~1200px abaixo, o que se parece exatamente com uma agenda
+           vazia.
+
+           O !important aqui é inevitável: só uma declaração important vence
+           outra. O escopo em .wj-agenda dá especificidade (0,3,0) contra os
+           (0,2,0) e (0,1,0) do template, então a vitória não depende da ordem
+           em que styled-jsx e globals.scss entram no <head>.
+           ------------------------------------------------------------------- */
+        .wj-agenda .fc .fc-view-harness { height: auto !important; }
+        .wj-agenda .fc .fc-scrollgrid-sync-table { height: auto !important; }
+
         .fc { background: transparent; color: var(--text); font-family: 'Inter', sans-serif; }
         .fc .fc-toolbar-title { font-size: 15px; font-weight: 600; color: var(--text); }
         .fc .fc-button { background: var(--card-alt); border: 1px solid var(--border);
