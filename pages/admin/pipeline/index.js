@@ -3,7 +3,7 @@
 // Drag & drop (dragula) preservado do módulo 4.
 // =============================================================================
 
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Seo from '../../../shared/layout-components/seo/seo';
@@ -34,6 +34,19 @@ const Pipeline = () => {
   const [dealsByStage, setDealsByStage] = useState({});
   const [total, setTotal] = useState(0);
   const columnRefs = useRef({});
+
+  // Scroll horizontal do board. `noFim` desliga o fade da borda direita quando
+  // não há mais coluna a revelar — o degradê é dica de continuidade, e mantê-lo
+  // no fim do scroll sugeriria conteúdo que não existe.
+  const boardRef = useRef(null);
+  const [noFim, setNoFim] = useState(true);
+
+  const medirFim = useCallback(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    // margem de 2px absorve o arredondamento de subpixel em zoom não inteiro.
+    setNoFim(el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
+  }, []);
 
   const load = async () => {
     try {
@@ -106,6 +119,14 @@ const Pipeline = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stages]);
 
+  // Remede depois de renderizar as colunas e a cada resize: se a janela crescer
+  // até caber tudo, o fade tem de sumir sem depender de um scroll do usuário.
+  useEffect(() => {
+    medirFim();
+    window.addEventListener('resize', medirFim);
+    return () => window.removeEventListener('resize', medirFim);
+  }, [stages, dealsByStage, medirFim]);
+
   return (
     <Fragment>
       <Seo title="Pipeline de Leads" />
@@ -115,7 +136,12 @@ const Pipeline = () => {
         sub={`${total} ${total === 1 ? 'lead' : 'leads'} no funil · triagem automatizada pelos agentes IA`}
       />
 
-      <div style={{ display: 'flex', gap: 16, overflowX: 'auto', overscrollBehaviorX: 'contain', paddingBottom: 10, alignItems: 'flex-start' }}>
+      <div
+        ref={boardRef}
+        onScroll={medirFim}
+        className={`wj-board${noFim ? ' wj-board-fim' : ''}`}
+        style={{ display: 'flex', gap: 16, overflowX: 'auto', overscrollBehaviorX: 'contain', paddingBottom: 10, alignItems: 'flex-start' }}
+      >
         {stages.map((stage) => {
           const cards = dealsByStage[stage.id] || [];
           return (
@@ -163,6 +189,53 @@ const Pipeline = () => {
       <style jsx global>{`
         .gu-mirror { position: fixed !important; margin: 0 !important; z-index: 9999 !important; opacity: .9; list-style: none; }
         .gu-transit { opacity: .3; }
+
+        /* -------------------------------------------------------------------
+           Board: 7 colunas de 258px + gaps = 1902px contra ~1480px úteis, então
+           o scroll é inevitável. O que se ajusta aqui é só onde ele corta e se
+           o usuário percebe que há mais.
+
+           Sangria: anula o padding lateral de 40px do <main> (contentlayout) com
+           margem negativa e o devolve como padding interno. As colunas passam a
+           ser cortadas na borda da área de conteúdo, e não a 40px dela — que era
+           o que parecia elemento quebrado.
+
+           SEM transform/filter/perspective/will-change aqui ou em ancestrais: o
+           .gu-mirror acima é position:fixed, e qualquer um deles criaria bloco
+           de contenção e deslocaria o card arrastado. A sangria é margem
+           negativa por isso. Sem scroll-snap, que brigaria com o auto-scroll do
+           arraste.
+           ------------------------------------------------------------------- */
+        .wj-board {
+          margin-left: -40px;
+          margin-right: -40px;
+          padding-left: 40px;
+          padding-right: 40px;
+          /* Firefox */
+          scrollbar-width: thin;
+          scrollbar-color: var(--border) transparent;
+          /* Dica de continuidade à direita; sem transform. */
+          -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+          mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+        }
+        /* Fim do scroll (ou tudo coube): sem degradê. */
+        .wj-board.wj-board-fim {
+          -webkit-mask-image: none;
+          mask-image: none;
+        }
+
+        /* O styles.css do template zera toda scrollbar com um seletor coringa
+           *::-webkit-scrollbar de height 0rem !important. Só !important vence
+           !important — daí o uso aqui, escopado ao board. */
+        .wj-board::-webkit-scrollbar { height: 10px !important; }
+        .wj-board::-webkit-scrollbar-track { background: transparent !important; }
+        .wj-board::-webkit-scrollbar-thumb {
+          background: var(--border) !important;
+          border-radius: 6px !important;
+        }
+        .wj-board::-webkit-scrollbar-thumb:hover {
+          background: var(--text-secondary) !important;
+        }
       `}</style>
     </Fragment>
   );
