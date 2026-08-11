@@ -184,6 +184,85 @@ describe('POST /api/internal/deals/triage — notificação de descarte', () => 
   });
 });
 
+describe('fase não regride por ausência de dados', () => {
+  const qualificadoAntes = (over = {}) => ({
+    id: 'd1', legalArea: 'trabalhista', urgencia: 'Média',
+    faseTriage: 'qualificado', qualifiedAt: new Date('2026-08-01T12:00:00Z'), ...over,
+  });
+  const semDados = { nome: null, area: null, resumo_caso: null, urgencia: null };
+  const faseGravada = () => prismaMock.deal.update.mock.calls[0][0].data.faseTriage;
+
+  it('(a) lead qualificado que só pede agendamento → NÃO rebaixa', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(qualificadoAntes());
+    const r = res();
+    await triageHandler(req(goodBody({
+      source_message_id: 'wamid.F1', pediu_agendamento: true,
+      fase_triagem: 'coletando_dados', dados_extraidos: semDados,
+    })), r);
+    expect(r.statusCode).toBe(200);
+    expect(faseGravada()).toBe('qualificado');
+    expect(r.body.fase_triagem).toBe('qualificado');
+  });
+
+  it('(b) lead qualificado que traz info desqualificante → PODE desqualificar', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(qualificadoAntes());
+    const r = res();
+    await triageHandler(req(goodBody({
+      source_message_id: 'wamid.F2', fase_triagem: 'desqualificado',
+      motivo_desqualificacao: 'Cliente já tem advogado constituído.',
+    })), r);
+    expect(faseGravada()).toBe('desqualificado');
+    expect(notificacao('lead_disqualified')).toBeDefined();
+  });
+
+  it('(c) lead em coleta que ganha dados suficientes → qualifica', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue({
+      id: 'd1', legalArea: null, urgencia: null, faseTriage: 'coletando_dados', qualifiedAt: null,
+    });
+    const r = res();
+    await triageHandler(req(goodBody({ source_message_id: 'wamid.F3' })), r);
+    expect(faseGravada()).toBe('qualificado');
+    expect(prismaMock.deal.update.mock.calls[0][0].data.qualifiedAt).toBeInstanceOf(Date);
+    expect(notificacao('lead_qualified')).toBeDefined();
+  });
+
+  it('(d) lead nunca qualificado com mensagem vazia → segue coletando_dados', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue({
+      id: 'd1', legalArea: null, urgencia: null, faseTriage: 'coletando_dados', qualifiedAt: null,
+    });
+    const r = res();
+    await triageHandler(req(goodBody({
+      source_message_id: 'wamid.F4', fase_triagem: 'coletando_dados', dados_extraidos: semDados,
+    })), r);
+    expect(faseGravada()).toBe('coletando_dados');
+    expect(prismaMock.deal.update.mock.calls[0][0].data.qualifiedAt).toBeUndefined();
+  });
+
+  it('(e) fase forçada por qualifiedAt não redispara lead_qualified', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(qualificadoAntes());
+    const r = res();
+    await triageHandler(req(goodBody({
+      source_message_id: 'wamid.F5', fase_triagem: 'coletando_dados', dados_extraidos: semDados,
+    })), r);
+    expect(faseGravada()).toBe('qualificado');
+    expect(r.body.lead_qualificado).toBe(false);
+    expect(notificacao('lead_qualified')).toBeUndefined();
+    // e não reescreve o qualified_at original
+    expect(prismaMock.deal.update.mock.calls[0][0].data.qualifiedAt).toBeUndefined();
+  });
+
+  it('preserva a assimetria: null não apaga area/urgencia já gravadas', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(qualificadoAntes());
+    const r = res();
+    await triageHandler(req(goodBody({
+      source_message_id: 'wamid.F6', dados_extraidos: semDados,
+    })), r);
+    const data = prismaMock.deal.update.mock.calls[0][0].data;
+    expect(data.legalArea).toBeUndefined();
+    expect(data.urgencia).toBeUndefined();
+  });
+});
+
 describe('pedido de agendamento → avisa o advogado', () => {
   // Lead qualificado numa rodada ANTERIOR que volta só dizendo "quero marcar":
   // dados_extraidos vem vazio, então o `qualified` recalculado é false.

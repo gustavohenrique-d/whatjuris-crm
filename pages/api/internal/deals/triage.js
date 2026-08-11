@@ -122,11 +122,14 @@ export default async function handler(req, res) {
 
   // Revalida o schema no backend (não confia na LLM).
   const dados = normalizeDados(d.dados_extraidos);
-  const { qualified, faseTriagem } = computeQualification(dados, d.fase_triagem);
+  // Preliminar: serve só à validação de contrato abaixo, que roda antes de
+  // tocar o banco. A fase definitiva depende de deal.qualifiedAt e por isso é
+  // recalculada mais adiante, com o deal já carregado.
+  const { qualified, faseTriagem: fasePreliminar } = computeQualification(dados, d.fase_triagem);
   const { valid, errors } = validateTriageOutput({
     dados_extraidos: dados,
     mensagem_para_cliente: 'ok', // a mensagem ao cliente é validada no workflow; aqui só os dados
-    fase_triagem: faseTriagem,
+    fase_triagem: fasePreliminar,
     lead_qualificado: qualified,
   });
   if (!valid) return res.status(422).json({ error: 'SCHEMA_VALIDATION_FAILED', fields: errors });
@@ -164,7 +167,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ updated: false, idempotent: true, deal_id: deal.id });
     }
 
-    // 5. Monta o update sem apagar dado válido com null.
+    // 5. Fase definitiva — agora com o estado durável do deal em mãos. Um lead
+    //    já qualificado não regride para coletando_dados só porque esta
+    //    mensagem não repetiu os dados.
+    const { faseTriagem } = computeQualification(dados, d.fase_triagem, {
+      jaQualificado: !!deal.qualifiedAt,
+    });
+
+    // 6. Monta o update sem apagar dado válido com null.
     const data = {};
     if (dados.area && dados.area !== 'Não identificado') data.legalArea = dados.area.toLowerCase();
     if (dados.urgencia) data.urgencia = dados.urgencia;
