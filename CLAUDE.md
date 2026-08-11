@@ -206,8 +206,59 @@ npm run dev                                    # dev server + sass watch
 npx prisma migrate dev --name <descricao>      # criar migration
 npx prisma db seed                             # popular permissões e funil
 npx prisma studio                              # inspecionar banco
+psql $DATABASE_URL -f prisma/sql/<arquivo>.sql # ver "Migrations SQL manuais"
+```
+
+---
+
+## Migrations SQL manuais
+
+`prisma/sql/*.sql` guarda tudo que o Prisma não gera: extensões, triggers,
+índices parciais, RLS e correções de enum.
+
+**Nenhum deploy executa esses arquivos.** O build do Render é
+`prisma generate && next build` — `prisma generate` só regenera o cliente. Nem
+os SQL numerados nem `prisma/migrations/` são aplicados automaticamente: todo
+schema em produção foi aplicado à mão.
+
+```bash
 psql $DATABASE_URL -f prisma/sql/002_triggers_and_indexes.sql
 ```
+
+**Recriar o banco do zero** exige, nesta ordem: `prisma migrate deploy`, depois
+os SQL de 002 a 011 em ordem numérica, depois `npx prisma db seed`. Não existe
+`001` — a base é a migration `20260721131411_init`. Todos são idempotentes.
+
+| # | Arquivo | O que faz |
+|---|---|---|
+| 002 | `triggers_and_indexes` | extensões, triggers, índices especiais, constraints |
+| 003 | `reconciliacao` | alinha o schema construído com a spec do Módulo 1 |
+| 004 | `alinhamento_chaves` | chaves de `pipelines`/`pipeline_stages` (`captacao`, `novo_contato`) |
+| 005 | `limpeza_duplicatas` | remove colunas duplicadas geradas no drift do Módulo 1 |
+| 006 | `corrigir_estagios` | garante os 7 estágios do funil `captacao` |
+| 007 | `campos_contato` | `whatsapp` e `consent_at` em `contacts` |
+| 008 | `actor_contact` | valor `CONTACT` no enum `ActorType` |
+| 009 | `agenda` | `HEARING` no `ActivityType` + índice da agenda |
+| 010 | `webhook_idempotency_rls` | RLS da tabela de idempotência (decisão 10) |
+| 011 | `sync_stage_from_status` | trigger `deals_sync_stage_from_status` (ver abaixo) |
+
+### Triggers de sincronização de deals
+
+São simétricos, e juntos sustentam a decisão 6:
+
+- **002** — `sync_deal_status_from_stage`: mover a etapa deriva o `status`
+  (`WON`/`LOST` fecham com `closed_at`; `OPEN` reabre).
+- **011** — `deals_sync_stage_from_status`: escrever `status` `LOST`/`WON` sem
+  informar etapa move o `stage_id` para a etapa daquele tipo. Sem ele, o deal
+  ficava `LOST` numa etapa `OPEN` e aparecia na coluna errada do funil, que
+  agrupa por etapa e ignora o status.
+
+A **ordem importa**. Postgres dispara triggers `BEFORE ... FOR EACH ROW` em
+ordem alfabética, e o prefixo `deals_` do 011 o coloca antes do
+`deals_track_stage` — senão a mudança de etapa que ele faz não entraria em
+`deal_stage_history`. Não há recursão: os três são `BEFORE` e só alteram `NEW`,
+sem `UPDATE` aninhado. Se `status` e `stage_id` vierem juntos e discordantes, a
+etapa vence.
 
 ---
 
