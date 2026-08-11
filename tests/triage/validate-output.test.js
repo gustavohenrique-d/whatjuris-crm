@@ -64,3 +64,29 @@ describe('processAgentOutput (pipeline completo)', () => {
     expect(processAgentOutput(JSON.stringify(semMsg)).agent_error).toBe('MISSING_CLIENT_MESSAGE');
   });
 });
+
+describe('pediu_agendamento', () => {
+  const comPedido = (v) => JSON.stringify({ ...validOutput, pediu_agendamento: v });
+
+  it('true sobrevive à reconstrução do objeto no pipeline', () => {
+    expect(processAgentOutput(comPedido(true)).pediu_agendamento).toBe(true);
+  });
+
+  it('ausente vira false — nunca undefined, que sumiria no JSON do body', () => {
+    expect(processAgentOutput(JSON.stringify(validOutput)).pediu_agendamento).toBe(false);
+  });
+
+  it('só o booleano true conta: string, número e objeto viram false', () => {
+    for (const v of ['true', 1, 'sim', {}, [], null]) {
+      expect(processAgentOutput(comPedido(v)).pediu_agendamento).toBe(false);
+    }
+  });
+
+  it('validateTriageOutput rejeita tipo errado só quando o campo veio', () => {
+    expect(validateTriageOutput({ ...validOutput }).valid).toBe(true);
+    expect(validateTriageOutput({ ...validOutput, pediu_agendamento: true }).valid).toBe(true);
+    const ruim = validateTriageOutput({ ...validOutput, pediu_agendamento: 'sim' });
+    expect(ruim.valid).toBe(false);
+    expect(ruim.errors).toContain('pediu_agendamento');
+  });
+});

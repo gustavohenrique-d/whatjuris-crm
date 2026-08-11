@@ -62,6 +62,44 @@ describe('buildLawyerNotification — ai_failure_takeover', () => {
   });
 });
 
+describe('buildLawyerNotification — lead_wants_appointment', () => {
+  const out = buildLawyerNotification({
+    event: 'lead_wants_appointment',
+    data: {
+      name: 'João da Silva', whatsapp: '5511999999999', area: 'trabalhista',
+      urgencia: 'Alta', resumo: 'Demissão sem verbas.',
+      dealUrl: 'https://crm.exemplo.com/admin/deals/d1',
+    },
+  });
+
+  it('o assunto diz quem quer marcar', () => {
+    expect(out.subject).toContain('João da Silva');
+    expect(out.subject).toContain('agendar');
+  });
+
+  it('deixa explícito que a IA não marcou e que quem marca é o advogado', () => {
+    expect(out.emailHtml).toContain('não marcou nada');
+    expect(out.emailHtml).toContain('agenda do CRM');
+    expect(out.whatsappText).toContain('quer agendar uma consulta');
+    expect(out.whatsappText).toContain('marque pela agenda do CRM');
+  });
+
+  it('leva o contexto do lead e o link do caso', () => {
+    expect(out.emailHtml).toContain('5511999999999');
+    expect(out.emailHtml).toContain('trabalhista');
+    expect(out.emailHtml).toContain('https://crm.exemplo.com/admin/deals/d1');
+    expect(out.whatsappText).toContain('https://crm.exemplo.com/admin/deals/d1');
+  });
+
+  it('sem dealUrl não quebra nem imprime "null"', () => {
+    const semLink = buildLawyerNotification({
+      event: 'lead_wants_appointment', data: { name: 'Ana' },
+    });
+    expect(semLink.emailHtml).toContain('Abra o caso no CRM');
+    expect(semLink.whatsappText).not.toContain('null');
+  });
+});
+
 describe('buildLawyerNotification — defaults e evento desconhecido', () => {
   it('campos ausentes viram placeholders seguros', () => {
     const out = buildLawyerNotification({ event: 'lead_qualified', data: {} });

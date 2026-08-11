@@ -24,6 +24,10 @@
       "maxLength": 300,
       "description": "Frase curta explicando o descarte. Preenchido apenas quando fase_triagem = 'desqualificado'; null nos demais casos."
     },
+    "pediu_agendamento": {
+      "type": "boolean",
+      "description": "true quando o cliente, NESTA mensagem, pediu para marcar/remarcar consulta ou perguntou sobre horários. A IA não agenda — o campo só avisa o advogado, que marca pela agenda do CRM."
+    },
     "lead_qualificado": { "type": "boolean" }
   }
 }

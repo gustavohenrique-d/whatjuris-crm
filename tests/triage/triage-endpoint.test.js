@@ -2,14 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import path from 'path';
 
-const { prismaMock, ctrlMock, idemMock, notifyMock } = vi.hoisted(() => ({
+const { prismaMock, ctrlMock, idemMock, notifyMock, recordMock } = vi.hoisted(() => ({
   prismaMock: {
     contact: { findFirst: vi.fn(), update: vi.fn() },
     deal: { findFirst: vi.fn(), update: vi.fn() },
+    activity: { findFirst: vi.fn() },
   },
   ctrlMock: { isBlocked: vi.fn() },
   idemMock: { isDuplicate: vi.fn(), register: vi.fn() },
   notifyMock: { notifyLawyer: vi.fn() },
+  recordMock: { recordAiAction: vi.fn() },
 }));
 prismaMock.$transaction = async (fn) => fn(prismaMock);
 
@@ -20,7 +22,7 @@ vi.mock('@/lib/conversations/control', () => ({
   sanitizeChatId: (s) => String(s || '').replace(/\D/g, ''),
 }));
 vi.mock('@/lib/webhooks/idempotency', () => ({ isDuplicate: idemMock.isDuplicate, register: idemMock.register }));
-vi.mock('@/lib/activities/record', () => ({ recordAiAction: vi.fn() }));
+vi.mock('@/lib/activities/record', () => ({ recordAiAction: recordMock.recordAiAction }));
 vi.mock('@/lib/notifications/lawyer', () => ({ notifyLawyer: notifyMock.notifyLawyer }));
 
 import triageHandler from '@/pages/api/internal/deals/triage';
@@ -44,6 +46,7 @@ const goodBody = (over = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.WEBHOOK_SECRET = SECRET;
+  process.env.NEXTAUTH_URL = 'https://crm.exemplo.com';
   prismaMock.contact.findFirst.mockResolvedValue({ id: 'c1', name: 'Lead WhatsApp 9999' });
   prismaMock.deal.findFirst.mockResolvedValue({ id: 'd1', legalArea: null, urgencia: null, faseTriage: 'coletando_dados', qualifiedAt: null });
   prismaMock.deal.update.mockResolvedValue({ id: 'd1' });
@@ -52,7 +55,13 @@ beforeEach(() => {
   idemMock.isDuplicate.mockResolvedValue(false);
   idemMock.register.mockResolvedValue({ created: true });
   notifyMock.notifyLawyer.mockResolvedValue({ email: true, whatsapp: false });
+  prismaMock.activity.findFirst.mockResolvedValue(null); // sem compromisso futuro, sem aviso recente
+  recordMock.recordAiAction.mockResolvedValue({ id: 'a1' });
 });
+
+// O aviso de agendamento consulta o banco antes de notificar e roda solto
+// (sem await no handler) — sem ceder o event loop, o mock ainda não foi chamado.
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 // Extrai o payload do notifyLawyer disparado para um evento, ou undefined.
 function notificacao(evento) {
@@ -170,6 +179,106 @@ describe('POST /api/internal/deals/triage — notificação de descarte', () => 
     notifyMock.notifyLawyer.mockRejectedValue(new Error('resend fora do ar'));
     const r = res();
     await triageHandler(req(descarte()), r);
+    expect(r.statusCode).toBe(200);
+    expect(r.body.updated).toBe(true);
+  });
+});
+
+describe('pedido de agendamento → avisa o advogado', () => {
+  // Lead qualificado numa rodada ANTERIOR que volta só dizendo "quero marcar":
+  // dados_extraidos vem vazio, então o `qualified` recalculado é false.
+  const jaQualificado = (over = {}) => ({
+    id: 'd1', legalArea: 'trabalhista', urgencia: 'Média',
+    faseTriage: 'qualificado', qualifiedAt: new Date('2026-08-01T12:00:00Z'), ...over,
+  });
+  const soPedido = (over = {}) => goodBody({
+    source_message_id: 'wamid.AG1',
+    pediu_agendamento: true,
+    dados_extraidos: { nome: null, area: null, resumo_caso: null, urgencia: null },
+    ...over,
+  });
+
+  it('lead já qualificado que só pede para marcar → notifica (sem a guarda de 1ª qualificação)', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(jaQualificado());
+    const r = res();
+    await triageHandler(req(soPedido()), r);
+    await flush();
+    expect(r.statusCode).toBe(200);
+    const n = notificacao('lead_wants_appointment');
+    expect(n).toBeDefined();
+    expect(n.data.name).toBe('Lead WhatsApp 9999');
+    expect(n.data.area).toBe('trabalhista');
+    expect(n.data.dealUrl).toContain('/admin/deals/d1');
+  });
+
+  it('qualifica e pede agendamento no mesmo turno → dispara os dois eventos', async () => {
+    const r = res();
+    await triageHandler(req(goodBody({ pediu_agendamento: true })), r);
+    await flush();
+    expect(notificacao('lead_qualified')).toBeDefined();
+    expect(notificacao('lead_wants_appointment')).toBeDefined();
+  });
+
+  it('registra a marcação na timeline para servir de dedupe', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(jaQualificado());
+    const r = res();
+    await triageHandler(req(soPedido()), r);
+    await flush();
+    const call = recordMock.recordAiAction.mock.calls
+      .find((c) => c[0].metadata?.evento === 'lead_wants_appointment');
+    expect(call).toBeDefined();
+    expect(call[0].dealId).toBe('d1');
+    expect(call[0].title).toBe('Lead pediu agendamento');
+  });
+
+  it('já existe compromisso futuro → não notifica', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(jaQualificado());
+    prismaMock.activity.findFirst.mockResolvedValue({ id: 'ev-futuro' });
+    const r = res();
+    await triageHandler(req(soPedido()), r);
+    await flush();
+    expect(notificacao('lead_wants_appointment')).toBeUndefined();
+    expect(recordMock.recordAiAction).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Lead pediu agendamento' }),
+    );
+  });
+
+  it('aviso recente dentro da janela → não notifica de novo', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(jaQualificado());
+    // 1ª consulta (compromisso futuro) = null; 2ª (aviso recente) = achou.
+    prismaMock.activity.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'aviso-anterior' });
+    const r = res();
+    await triageHandler(req(soPedido()), r);
+    await flush();
+    expect(notificacao('lead_wants_appointment')).toBeUndefined();
+  });
+
+  it('lead ainda em coleta que pede agendamento → não notifica', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue({
+      id: 'd1', legalArea: null, urgencia: null, faseTriage: 'coletando_dados', qualifiedAt: null,
+    });
+    const r = res();
+    await triageHandler(req(soPedido()), r);
+    await flush();
+    expect(notificacao('lead_wants_appointment')).toBeUndefined();
+  });
+
+  it('sem pediu_agendamento → não notifica', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(jaQualificado());
+    const r = res();
+    await triageHandler(req(goodBody({ source_message_id: 'wamid.AG9' })), r);
+    await flush();
+    expect(notificacao('lead_wants_appointment')).toBeUndefined();
+  });
+
+  it('falha no aviso não derruba a resposta', async () => {
+    prismaMock.deal.findFirst.mockResolvedValue(jaQualificado());
+    prismaMock.activity.findFirst.mockRejectedValue(new Error('banco fora'));
+    const r = res();
+    await triageHandler(req(soPedido()), r);
+    await flush();
     expect(r.statusCode).toBe(200);
     expect(r.body.updated).toBe(true);
   });

@@ -27,6 +27,9 @@ const schema = z.object({
   // Motivo do descarte — top-level de propósito: normalizeDados() filtra
   // dados_extraidos por whitelist e descartaria a chave silenciosamente.
   motivo_desqualificacao: z.string().trim().max(300).optional().nullable(),
+  // Idem: top-level. true quando o cliente pediu, nesta mensagem, para marcar
+  // consulta. A IA não agenda — isto só avisa o advogado.
+  pediu_agendamento: z.boolean().optional().default(false),
   dados_extraidos: z.object({
     nome: z.string().nullable().optional(),
     area: z.string().nullable().optional(),
@@ -42,6 +45,68 @@ function verifySecret(req) {
 }
 
 const PLACEHOLDER_NAME = /^Lead WhatsApp/i;
+
+// Janela de silêncio entre dois avisos de pedido de agendamento para o mesmo
+// deal. Colapsa a rajada de "oi", "quero marcar", "tem horário?" numa
+// notificação só, mas volta a cutucar o advogado se meio expediente passar sem
+// ninguém marcar nada.
+const JANELA_AVISO_AGENDAMENTO_MS = 6 * 60 * 60 * 1000;
+const TIPOS_COMPROMISSO = ['MEETING', 'CALL', 'HEARING'];
+
+// Avisa o advogado de que o lead quer marcar. Duas guardas, em ordem de custo:
+//
+// 1. Já existe compromisso futuro para o deal → o advogado já marcou; a promessa
+//    feita ao cliente foi cumprida e insistir vira ruído.
+// 2. Já avisamos nas últimas 6h → rajada de mensagens do mesmo lead.
+//
+// Notifica ANTES de registrar o marcador: um aviso perdido quebra a promessa
+// feita ao cliente, enquanto um aviso repetido só incomoda. Se o registro
+// falhar, o próximo pedido notifica de novo — que é o lado seguro do erro.
+async function avisarPedidoDeAgendamento({ deal, contact, nome, whatsapp, area, urgencia, resumo }) {
+  const agora = new Date();
+
+  const compromissoFuturo = await prisma.activity.findFirst({
+    where: { dealId: deal.id, type: { in: TIPOS_COMPROMISSO }, dueAt: { gt: agora } },
+    select: { id: true },
+  });
+  if (compromissoFuturo) return { skipped: true, motivo: 'ja_agendado' };
+
+  const avisoRecente = await prisma.activity.findFirst({
+    where: {
+      dealId: deal.id,
+      type: 'AI_ACTION',
+      createdAt: { gte: new Date(agora.getTime() - JANELA_AVISO_AGENDAMENTO_MS) },
+      metadata: { path: ['evento'], equals: 'lead_wants_appointment' },
+    },
+    select: { id: true },
+  });
+  if (avisoRecente) return { skipped: true, motivo: 'avisado_recentemente' };
+
+  const base = process.env.NEXTAUTH_URL?.replace(/\/+$/, '');
+
+  await notifyLawyer({
+    event: 'lead_wants_appointment',
+    data: {
+      name: nome,
+      whatsapp,
+      area,
+      urgencia,
+      resumo,
+      dealUrl: base ? `${base}/admin/deals/${deal.id}` : null,
+    },
+  });
+
+  await recordAiAction({
+    dealId: deal.id,
+    contactId: contact.id,
+    agentName: 'Agente de Triagem',
+    title: 'Lead pediu agendamento',
+    content: 'O cliente pediu para marcar uma consulta. A IA não agendou — o advogado foi avisado.',
+    metadata: { evento: 'lead_wants_appointment' },
+  });
+
+  return { sent: true };
+}
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -168,6 +233,26 @@ export default async function handler(req, res) {
           motivo: d.motivo_desqualificacao || dados.resumo_caso || 'Não informado pelo agente',
         },
       }).catch((err) => console.error('[triage] notifyLawyer falhou:', err.message));
+    }
+
+    // ...e quando o lead pede para marcar consulta.
+    //
+    // Sem a guarda `!deal.qualifiedAt` de propósito: o caso comum é justamente o
+    // lead qualificado dias atrás que volta querendo marcar. Aceita `qualified`
+    // (desta rodada) OU `deal.qualifiedAt` (rodadas anteriores) porque numa
+    // mensagem curta como "quero marcar" o agente costuma devolver
+    // dados_extraidos vazio, o que zera o `qualified` recalculado — exigir só
+    // ele silenciaria exatamente o cenário que este aviso existe para cobrir.
+    if (d.pediu_agendamento && (qualified || deal.qualifiedAt)) {
+      avisarPedidoDeAgendamento({
+        deal,
+        contact,
+        nome,
+        whatsapp,
+        area: data.legalArea ?? deal.legalArea,
+        urgencia: dados.urgencia ?? deal.urgencia,
+        resumo: dados.resumo_caso,
+      }).catch((err) => console.error('[triage] aviso de agendamento falhou:', err.message));
     }
 
     return res.status(200).json({
