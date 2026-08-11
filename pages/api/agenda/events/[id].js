@@ -11,6 +11,7 @@ import { prisma } from '@/lib/db/prisma';
 import { withAuth, BadRequest, NotFound, Forbidden } from '@/lib/auth/guard';
 import { syncToGoogle, deleteFromGoogle } from '@/lib/calendar/google';
 import { notificarRemarcacao, notificarCancelamento } from '@/lib/whatsapp/notificar-agenda';
+import { voltarDeConsultaAgendada } from '@/lib/pipeline/mover-por-agenda';
 
 const updateSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
@@ -92,6 +93,12 @@ async function handler(req, res, ctx) {
     // antes correria o risco de anunciar um cancelamento que não aconteceu.
     notificarCancelamento({ activity: event })
       .catch((err) => console.error('[agenda] notificação de cancelamento falhou:', err.message));
+
+    // Devolve o card ao funil. Depois do delete de propósito: a guarda de
+    // "outro compromisso futuro" lá dentro não pode contar o evento que
+    // acabou de ser cancelado.
+    voltarDeConsultaAgendada({ dealId: event.dealId, tipo: event.type, userId: ctx.userId })
+      .catch((err) => console.error('[agenda] movimento de etapa falhou:', err.message));
 
     return res.status(200).json({ message: 'Evento removido.' });
   }

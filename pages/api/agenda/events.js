@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { withAuth, BadRequest, Forbidden } from '@/lib/auth/guard';
 import { createCalendarEvent } from '@/lib/calendar/create';
 import { notificarAgendamento } from '@/lib/whatsapp/notificar-agenda';
+import { moverParaConsultaAgendada } from '@/lib/pipeline/mover-por-agenda';
 
 const TIPOS_VALIDOS = ['MEETING', 'CALL', 'TASK', 'HEARING'];
 
@@ -38,6 +39,14 @@ async function handler(req, res, ctx) {
   // então falha de WhatsApp não pode derrubar a criação.
   notificarAgendamento({ activity, dealId: parsed.data.dealId })
     .catch((err) => console.error('[agenda] notificação falhou:', err.message));
+
+  // Avança o card no funil. Também fire-and-forget, e independente da
+  // notificação: uma falhar não pode impedir a outra nem derrubar a criação.
+  moverParaConsultaAgendada({
+    dealId: parsed.data.dealId,
+    tipo: parsed.data.type,
+    userId: ctx.userId,
+  }).catch((err) => console.error('[agenda] movimento de etapa falhou:', err.message));
 
   return res.status(201).json({ event: activity });
 }
