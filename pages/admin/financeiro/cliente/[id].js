@@ -17,6 +17,7 @@ import { toast } from 'react-toastify';
 import Seo from '../../../../shared/layout-components/seo/seo';
 import { StatusBadge, WjButton, WjCard, WjScreenHeader } from '../../../../shared/components/wj';
 import { estaAtrasada } from '../../../../lib/financeiro/datas';
+import ArquivarClienteModal from '../../../../shared/components/wj/ArquivarClienteModal';
 import { exportarExcel, exportarPDF } from '../../../../lib/financeiro/export';
 
 const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
@@ -70,6 +71,7 @@ const ClienteFinanceiro = () => {
   const [editandoContato, setEditandoContato] = useState(false);
   const [dadosContato, setDadosContato] = useState(null);
   const [salvandoContato, setSalvandoContato] = useState(false);
+  const [arquivando, setArquivando] = useState(false);
 
   const carregar = useCallback(async () => {
     if (!id) return;
@@ -226,6 +228,7 @@ const ClienteFinanceiro = () => {
               onClick={() => exportar('pdf')}>
               {exportando === 'pdf' ? 'Gerando…' : 'Exportar PDF'}
             </WjButton>
+            <WjButton variant="outline" onClick={() => setArquivando(true)} disabled={!contato}>Arquivar</WjButton>
             <WjButton variant="outline" onClick={() => router.push('/admin/financeiro/')}>← Voltar</WjButton>
           </span>
         )}
@@ -438,6 +441,14 @@ const ClienteFinanceiro = () => {
       <WjButton onClick={() => router.push(`/admin/financeiro/?novaCobranca=${id}`)}>
         + Nova cobrança para este cliente
       </WjButton>
+
+      {arquivando && contato && (
+        <ArquivarClienteModal
+          contato={contato}
+          onFechar={() => setArquivando(false)}
+          onArquivado={() => router.push('/admin/financeiro/')}
+        />
+      )}
     </Fragment>
   );
 };

@@ -13,6 +13,7 @@ import { Form, Modal, Spinner } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import Seo from '../../../shared/layout-components/seo/seo';
 import { AreaBadge, StatusBadge, WjButton, WjCard, WjScreenHeader } from '../../../shared/components/wj';
+import ArquivarClienteModal from '../../../shared/components/wj/ArquivarClienteModal';
 
 const th = {
   textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase',
@@ -53,6 +54,7 @@ const Clientes = () => {
   const [showModal, setShowModal] = useState(false);
   const [novo, setNovo] = useState(FORM_NOVO);
   const [criando, setCriando] = useState(false);
+  const [arquivando, setArquivando] = useState(null);
 
   const carregar = useCallback(async () => {
     try {
@@ -217,9 +219,14 @@ const Clientes = () => {
                           </button>
                         </span>
                       ) : (
-                        <button onClick={() => abrirEdicao(c)} style={{ ...acaoLink, color: 'var(--accent)' }}>
-                          Editar
-                        </button>
+                        <span style={{ display: 'inline-flex', gap: 12 }}>
+                          <button onClick={() => abrirEdicao(c)} style={{ ...acaoLink, color: 'var(--accent)' }}>
+                            Editar
+                          </button>
+                          <button onClick={() => setArquivando(c)} style={{ ...acaoLink, color: 'var(--text-secondary)', fontWeight: 400 }}>
+                            Arquivar
+                          </button>
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -279,6 +286,14 @@ const Clientes = () => {
           </WjButton>
         </Modal.Footer>
       </Modal>
+
+      {arquivando && (
+        <ArquivarClienteModal
+          contato={arquivando}
+          onFechar={() => setArquivando(null)}
+          onArquivado={(id) => setRows((r) => r.filter((x) => x.id !== id))}
+        />
+      )}
 
       <style jsx global>{`
         /* Modal escuro — bloco styled-jsx global só vale enquanto ESTE

@@ -184,6 +184,18 @@ mensagem de erro do Prisma expõe nome de tabela e coluna.
 `Contact` e `Deal` usam `deletedAt`. Toda query de listagem filtra
 `deletedAt: null`. Existe índice parcial para isso.
 
+⚠️ **Não trocar por hard delete.** `contacts.deletedAt` não é só uma flag de
+listagem: 13 pontos dependem dele, incluindo o caminho de entrada do WhatsApp
+(`lib/whatsapp/lead.js`, `internal/deals/triage.js`, `by-chat`,
+`outbound-fragments/reserve` e `confirm`, `conversations/send-manual`). O
+webhook procura o contato com `where: { whatsapp, deletedAt: null }` — um lead
+arquivado NÃO é encontrado e uma conversa nova cria contato novo, o que é o
+comportamento pretendido de re-triagem.
+
+Arquivar um contato é bloqueado quando ele tem qualquer cobrança, paga ou em
+aberto (`lib/contacts/impacto.js`): cobrança viva sem cliente vira registro
+órfão no financeiro, e a paga é histórico que o escritório precisa manter.
+
 ### Auditoria
 
 Ação que altera dado de negócio chama `writeAudit()`. Campos sensíveis

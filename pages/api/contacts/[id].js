@@ -8,6 +8,8 @@ import { prisma } from '@/lib/db/prisma';
 import {
   withAuth, BadRequest, NotFound, Forbidden, writeAudit,
 } from '@/lib/auth/guard';
+import { montarImpacto, eventosGoogleFuturos } from '@/lib/contacts/impacto';
+import { deleteFromGoogle } from '@/lib/calendar/google';
 import { assertCanReadContact, assertCanWriteContact } from '@/lib/query/scope';
 
 const updateSchema = z.object({
@@ -77,6 +79,18 @@ async function handler(req, res, ctx) {
 
     if (!ctx.can('contact.delete')) throw Forbidden();
 
+    // GUARDA FINANCEIRA — no backend, não só na UI. Um cliente com cobrança
+    // não é arquivado: a viva viraria registro sem dono no financeiro, e a
+    // paga é histórico que o escritório precisa manter à vista.
+    const impacto = await montarImpacto(contact);
+    if (impacto.bloqueado) {
+      return res.status(422).json({ error: impacto.motivoBloqueio, impacto });
+    }
+
+    // Coletado ANTES do update: depois o contato some das listagens e a busca
+    // por eventos não o alcançaria mais.
+    const eventos = await eventosGoogleFuturos(id);
+
     await prisma.contact.update({
       where: { id },
       data: { deletedAt: new Date() },
@@ -84,10 +98,32 @@ async function handler(req, res, ctx) {
 
     await writeAudit({
       actorId: ctx.userId, action: 'contact.deleted', resource: 'contact',
-      resourceId: id, before: contact, ctx,
+      resourceId: id, before: contact, after: { impacto }, ctx,
     });
 
-    return res.status(200).json({ message: 'Contato removido.' });
+    // Cancelar no Google é best-effort: o contato já saiu das telas, e uma
+    // falha da API do Google não pode desfazer nem travar o arquivamento.
+    // Os que falharem voltam na resposta para a UI avisar.
+    const naoCancelados = [];
+    if (eventos.length) {
+      const org = await prisma.organization.findFirst({ select: { settings: true } });
+      const refreshToken = org?.settings?.googleRefreshToken ?? null;
+      for (const ev of eventos) {
+        if (!refreshToken) { naoCancelados.push(ev); continue; }
+        try {
+          await deleteFromGoogle(ev.googleEventId, refreshToken);
+        } catch (err) {
+          console.error('[contacts] cancelamento no Google falhou:', err.message);
+          naoCancelados.push(ev);
+        }
+      }
+    }
+
+    return res.status(200).json({
+      message: 'Cliente arquivado.',
+      impacto,
+      eventosNaoCancelados: naoCancelados.map((e) => ({ title: e.title, dueAt: e.dueAt })),
+    });
   }
 }
 
