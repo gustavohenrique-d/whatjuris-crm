@@ -36,6 +36,16 @@ const statusDe = (p) => (p.status === 'PAID' ? 'pago' : (estaAtrasada(p) ? 'atra
 const rotulo = { fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 };
 const valor = { fontSize: 13.5, color: 'var(--text)' };
 
+// Mesmo visual do input de "tipo de serviço" logo abaixo — nada de estilo novo.
+const inputContato = {
+  width: '100%', background: 'var(--card-alt)', border: '1px solid var(--border)',
+  borderRadius: 6, color: 'var(--text)', fontSize: 13, padding: '5px 8px',
+};
+const acaoLink = {
+  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+  fontSize: 11.5, fontWeight: 600,
+};
+
 const ClienteFinanceiro = () => {
   const router = useRouter();
   const { id } = router.query;
@@ -54,6 +64,12 @@ const ClienteFinanceiro = () => {
   const [servicoRascunho, setServicoRascunho] = useState('');
   const [exportando, setExportando] = useState(null);
   const [orgName, setOrgName] = useState('');
+
+  // Edição do bloco de contato. `dadosContato` só existe enquanto o modo de
+  // edição está ativo — cancelar é simplesmente descartá-lo.
+  const [editandoContato, setEditandoContato] = useState(false);
+  const [dadosContato, setDadosContato] = useState(null);
+  const [salvandoContato, setSalvandoContato] = useState(false);
 
   const carregar = useCallback(async () => {
     if (!id) return;
@@ -101,6 +117,44 @@ const ClienteFinanceiro = () => {
       console.error('[financeiro:cliente] export falhou:', err);
     } finally {
       setExportando(null);
+    }
+  };
+
+  const abrirEdicaoContato = () => {
+    setDadosContato({
+      name: contato?.name || '',
+      email: contato?.email || '',
+      phone: contato?.phone || '',
+    });
+    setEditandoContato(true);
+  };
+
+  const salvarContato = async () => {
+    setSalvandoContato(true);
+    try {
+      // ⚠️ O payload é montado campo a campo, e `whatsapp` NÃO está aqui: ele é
+      // a chave usada por lead.js, triage.js, takeover e envio para achar o
+      // contato pelo número. Alterá-lo desvincularia a pessoa do histórico de
+      // conversas — a tela mostra, mas nunca escreve.
+      //
+      // Campo vazio vira null, não '': o schema do backend é
+      // `z.string().email().nullable()`, e '' falharia a validação de e-mail em
+      // vez de limpar o campo.
+      const { data } = await axios.patch(`/api/contacts/${id}/`, {
+        name: dadosContato.name.trim(),
+        email: dadosContato.email.trim() || null,
+        phone: dadosContato.phone.trim() || null,
+      });
+      setContato(data.contact);
+      setEditandoContato(false);
+      setDadosContato(null);
+      toast.success('Dados do cliente atualizados.');
+    } catch (err) {
+      // Mantém o modo de edição para o usuário corrigir (ex.: e-mail inválido,
+      // que o zod do backend recusa).
+      toast.error(err?.response?.data?.error || 'Não foi possível salvar os dados.');
+    } finally {
+      setSalvandoContato(false);
     }
   };
 
@@ -179,11 +233,72 @@ const ClienteFinanceiro = () => {
 
       {/* Bloco 1 — dados do contato */}
       <WjCard style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            Dados do cliente
+          </span>
+          {editandoContato ? (
+            <span style={{ display: 'inline-flex', gap: 12 }}>
+              <button onClick={salvarContato} disabled={salvandoContato}
+                style={{ ...acaoLink, color: 'var(--green)' }}>
+                {salvandoContato ? 'Salvando…' : 'Salvar'}
+              </button>
+              <button onClick={() => { setEditandoContato(false); setDadosContato(null); }}
+                disabled={salvandoContato}
+                style={{ ...acaoLink, color: 'var(--text-secondary)', fontWeight: 400 }}>
+                Cancelar
+              </button>
+            </span>
+          ) : (
+            <button onClick={abrirEdicaoContato} disabled={!contato}
+              style={{ ...acaoLink, color: 'var(--accent)' }}>
+              Editar
+            </button>
+          )}
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18 }}>
-          <div><div style={rotulo}>Nome</div><div style={valor}>{contato?.name || '—'}</div></div>
-          <div><div style={rotulo}>WhatsApp</div><div style={{ ...valor, fontFamily: 'var(--mono)' }}>{contato?.whatsapp || '—'}</div></div>
-          <div><div style={rotulo}>E-mail</div><div style={valor}>{contato?.email || '—'}</div></div>
-          <div><div style={rotulo}>Casos</div><div style={valor}>{contato?.deals?.length ?? 0}</div></div>
+          <div>
+            <div style={rotulo}>Nome</div>
+            {editandoContato ? (
+              <input style={inputContato} value={dadosContato.name}
+                onChange={(e) => setDadosContato((d) => ({ ...d, name: e.target.value }))} />
+            ) : <div style={valor}>{contato?.name || '—'}</div>}
+          </div>
+
+          <div>
+            <div style={rotulo}>E-mail</div>
+            {editandoContato ? (
+              <input style={inputContato} type="email" placeholder="cliente@email.com"
+                value={dadosContato.email}
+                onChange={(e) => setDadosContato((d) => ({ ...d, email: e.target.value }))} />
+            ) : <div style={valor}>{contato?.email || '—'}</div>}
+          </div>
+
+          <div>
+            <div style={rotulo}>Telefone</div>
+            {editandoContato ? (
+              <input style={inputContato} placeholder="(13) 3333-3333"
+                value={dadosContato.phone}
+                onChange={(e) => setDadosContato((d) => ({ ...d, phone: e.target.value }))} />
+            ) : <div style={valor}>{contato?.phone || '—'}</div>}
+          </div>
+
+          {/* WhatsApp NUNCA vira input: é a chave que liga este contato às
+              conversas, à triagem e às notificações. */}
+          <div>
+            <div style={rotulo}>WhatsApp</div>
+            <div style={{ ...valor, fontFamily: 'var(--mono)' }}>{contato?.whatsapp || '—'}</div>
+            {editandoContato && (
+              <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 4 }}>
+                não editável — vincula o histórico de conversas
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, fontSize: 11.5, color: 'var(--text-secondary)' }}>
+          {contato?.deals?.length ?? 0} {(contato?.deals?.length ?? 0) === 1 ? 'caso' : 'casos'} no funil
         </div>
       </WjCard>
 
