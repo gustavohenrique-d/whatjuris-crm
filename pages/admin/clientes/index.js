@@ -55,11 +55,15 @@ const Clientes = () => {
   const [novo, setNovo] = useState(FORM_NOVO);
   const [criando, setCriando] = useState(false);
   const [arquivando, setArquivando] = useState(null);
+  // Aba: 'ativos' | 'arquivados'. Listas separadas de propósito — misturá-las
+  // faria o arquivado reaparecer entre os ativos, que é o oposto de arquivar.
+  const [aba, setAba] = useState('ativos');
+  const [restaurando, setRestaurando] = useState(null);
 
   const carregar = useCallback(async () => {
     try {
       const [cRes, dRes] = await Promise.all([
-        axios.get('/api/contacts/?limit=100'),
+        axios.get(`/api/contacts/?limit=100${aba === 'arquivados' ? '&arquivados=true' : ''}`),
         axios.get('/api/deals/?limit=200'),
       ]);
       const dealsByContact = {};
@@ -72,9 +76,9 @@ const Clientes = () => {
     } finally {
       setLoaded(true);
     }
-  }, []);
+  }, [aba]);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => { setLoaded(false); carregar(); }, [carregar]);
 
   const abrirEdicao = (c) => {
     setEditando(c.id);
@@ -105,6 +109,21 @@ const Clientes = () => {
       toast.error(err?.response?.data?.error || 'Não foi possível salvar.');
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const restaurar = async (c) => {
+    setRestaurando(c.id);
+    try {
+      await axios.post(`/api/contacts/${c.id}/restore/`);
+      // Sai da lista de arquivados; volta a aparecer nos ativos porque o filtro
+      // deletedAt: null passa a incluí-lo de novo.
+      setRows((r) => r.filter((x) => x.id !== c.id));
+      toast.success('Cliente restaurado.');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Não foi possível restaurar.');
+    } finally {
+      setRestaurando(null);
     }
   };
 
@@ -140,8 +159,27 @@ const Clientes = () => {
         label="Módulo · Relacionamento"
         title="Clientes"
         sub={loaded ? `${rows.length} ${rows.length === 1 ? 'cliente' : 'clientes'}` : 'Carregando…'}
-        right={<WjButton onClick={() => setShowModal(true)}>+ Novo cliente</WjButton>}
+        right={aba === 'ativos'
+          ? <WjButton onClick={() => setShowModal(true)}>+ Novo cliente</WjButton>
+          : null}
       />
+
+      <div style={{ display: 'flex', gap: 18, marginBottom: 16 }}>
+        {[['ativos', 'Ativos'], ['arquivados', 'Arquivados']].map(([chave, rotulo]) => (
+          <button
+            key={chave}
+            onClick={() => { setAba(chave); cancelarEdicao(); }}
+            style={{
+              background: 'none', border: 'none', padding: '0 0 6px', cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+              color: aba === chave ? 'var(--text)' : 'var(--text-secondary)',
+              borderBottom: `2px solid ${aba === chave ? 'var(--accent)' : 'transparent'}`,
+            }}
+          >
+            {rotulo}
+          </button>
+        ))}
+      </div>
 
       <WjCard>
         <div style={{ overflowX: 'auto' }}>
@@ -152,14 +190,16 @@ const Clientes = () => {
                 <th style={th}>Contato</th>
                 <th style={th}>Área</th>
                 <th style={th}>Processo vinculado</th>
-                <th style={th}>Última atividade</th>
+                <th style={th}>{aba === 'arquivados' ? 'Arquivado em' : 'Última atividade'}</th>
                 <th style={th}>Status</th>
                 <th style={{ ...th, textAlign: 'right' }}>Ação</th>
               </tr>
             </thead>
             <tbody>
               {loaded && rows.length === 0 && (
-                <tr><td style={{ ...td, borderBottom: 'none', color: 'var(--text-secondary)' }} colSpan={7}>Nenhum cliente cadastrado.</td></tr>
+                <tr><td style={{ ...td, borderBottom: 'none', color: 'var(--text-secondary)' }} colSpan={7}>
+                  {aba === 'arquivados' ? 'Nenhum cliente arquivado.' : 'Nenhum cliente cadastrado.'}
+                </td></tr>
               )}
               {rows.map((c, i) => {
                 const last = i === rows.length - 1;
@@ -202,7 +242,7 @@ const Clientes = () => {
                     <td style={{ ...cel, fontFamily: 'var(--mono)', fontSize: 12.5 }}>
                       {c.deals[0]?.id?.slice(0, 8) || '—'}
                     </td>
-                    <td style={cel}>{timeAgo(c.createdAt)}</td>
+                    <td style={cel}>{timeAgo(aba === 'arquivados' ? c.deletedAt : c.createdAt)}</td>
                     <td style={cel}>
                       <StatusBadge variant={ativo ? 'green' : 'amber'}>{ativo ? 'Ativo' : 'Inativo'}</StatusBadge>
                     </td>
@@ -219,14 +259,24 @@ const Clientes = () => {
                           </button>
                         </span>
                       ) : (
-                        <span style={{ display: 'inline-flex', gap: 12 }}>
-                          <button onClick={() => abrirEdicao(c)} style={{ ...acaoLink, color: 'var(--accent)' }}>
-                            Editar
+                        aba === 'arquivados' ? (
+                          // Restaurar é reversível e não-destrutivo: um clique
+                          // basta, sem a fricção de digitar o nome que o
+                          // arquivar exige.
+                          <button onClick={() => restaurar(c)} disabled={restaurando === c.id}
+                            style={{ ...acaoLink, color: 'var(--green)' }}>
+                            {restaurando === c.id ? 'Restaurando…' : 'Restaurar'}
                           </button>
-                          <button onClick={() => setArquivando(c)} style={{ ...acaoLink, color: 'var(--text-secondary)', fontWeight: 400 }}>
-                            Arquivar
-                          </button>
-                        </span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', gap: 12 }}>
+                            <button onClick={() => abrirEdicao(c)} style={{ ...acaoLink, color: 'var(--accent)' }}>
+                              Editar
+                            </button>
+                            <button onClick={() => setArquivando(c)} style={{ ...acaoLink, color: 'var(--text-secondary)', fontWeight: 400 }}>
+                              Arquivar
+                            </button>
+                          </span>
+                        )
                       )}
                     </td>
                   </tr>

@@ -23,11 +23,15 @@ const createSchema = z.object({
 
 async function handler(req, res, ctx) {
   if (req.method === 'GET') {
-    const { q, source, type, page = '1', limit = '50' } = req.query;
+    const { q, source, type, arquivados, page = '1', limit = '50' } = req.query;
     const take = Math.min(parseInt(limit, 10) || 50, 100);
     const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
 
-    const where = contactWhere(ctx); // lança 403 se sem permissão
+    // `contactWhere` fixa deletedAt: null, mas espalha `extra` depois — dá para
+    // inverter o filtro sem tocar no helper nem duplicar a regra de escopo.
+    const where = arquivados === 'true'
+      ? contactWhere(ctx, { deletedAt: { not: null } })
+      : contactWhere(ctx); // lança 403 se sem permissão
 
     if (q) {
       where.name = { contains: q, mode: 'insensitive' };
@@ -40,7 +44,7 @@ async function handler(req, res, ctx) {
         where,
         select: {
           id: true, name: true, email: true, phone: true, whatsapp: true,
-          document: true, source: true, type: true, createdAt: true,
+          document: true, source: true, type: true, createdAt: true, deletedAt: true,
           owner: { select: { id: true, name: true } },
           _count: { select: { deals: true } },
         },
