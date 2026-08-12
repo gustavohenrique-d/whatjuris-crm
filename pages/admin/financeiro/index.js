@@ -17,6 +17,7 @@ import { toast } from 'react-toastify';
 import Seo from '../../../shared/layout-components/seo/seo';
 import { StatusBadge, WjButton, WjCard, WjScreenHeader } from '../../../shared/components/wj';
 import { estaAtrasada } from '../../../lib/financeiro/datas';
+import { exportarExcel, exportarPDF } from '../../../lib/financeiro/export';
 
 const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 
@@ -70,6 +71,8 @@ const Financeiro = () => {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(FORM_INICIAL);
   const [salvando, setSalvando] = useState(false);
+  const [exportando, setExportando] = useState(null);
+  const [orgName, setOrgName] = useState('');
 
   // Autocomplete de pagador — mesmo padrão da agenda, mesmo endpoint.
   const [busca, setBusca] = useState('');
@@ -114,6 +117,28 @@ const Financeiro = () => {
   }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  // Nome do escritório para o cabeçalho do PDF. Best-effort: se falhar, o PDF
+  // sai com o título genérico em vez de não sair.
+  useEffect(() => {
+    axios.get('/api/organization/')
+      .then(({ data }) => setOrgName(data?.organization?.name || ''))
+      .catch(() => {});
+  }, []);
+
+  // Exporta o MESMO array que a tabela renderiza — o que se vê é o que sai.
+  const exportar = async (formato) => {
+    setExportando(formato);
+    try {
+      if (formato === 'xlsx') await exportarExcel(parcelas, {});
+      else await exportarPDF(parcelas, {}, orgName);
+    } catch (err) {
+      toast.error('Não foi possível gerar o arquivo.');
+      console.error('[financeiro] export falhou:', err);
+    } finally {
+      setExportando(null);
+    }
+  };
 
   // Voltando do detalhe do cliente com ?novaCobranca=<contactId>: abre o modal
   // já vinculado, e limpa a query para o F5 não reabrir.
@@ -211,7 +236,19 @@ const Financeiro = () => {
         label="Módulo · Financeiro"
         title="Financeiro"
         sub="Honorários a receber e vencimentos"
-        right={<WjButton onClick={() => setShowModal(true)}>+ Nova cobrança</WjButton>}
+        right={(
+          <span style={{ display: 'inline-flex', gap: 8 }}>
+            <WjButton variant="outline" disabled={!parcelas.length || !!exportando}
+              onClick={() => exportar('xlsx')}>
+              {exportando === 'xlsx' ? 'Gerando…' : 'Exportar Excel'}
+            </WjButton>
+            <WjButton variant="outline" disabled={!parcelas.length || !!exportando}
+              onClick={() => exportar('pdf')}>
+              {exportando === 'pdf' ? 'Gerando…' : 'Exportar PDF'}
+            </WjButton>
+            <WjButton onClick={() => setShowModal(true)}>+ Nova cobrança</WjButton>
+          </span>
+        )}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>

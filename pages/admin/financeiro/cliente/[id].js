@@ -17,6 +17,7 @@ import { toast } from 'react-toastify';
 import Seo from '../../../../shared/layout-components/seo/seo';
 import { StatusBadge, WjButton, WjCard, WjScreenHeader } from '../../../../shared/components/wj';
 import { estaAtrasada } from '../../../../lib/financeiro/datas';
+import { exportarExcel, exportarPDF } from '../../../../lib/financeiro/export';
 
 const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 const dataBR = (iso) => {
@@ -51,6 +52,8 @@ const ClienteFinanceiro = () => {
 
   const [servicoEditando, setServicoEditando] = useState(null);
   const [servicoRascunho, setServicoRascunho] = useState('');
+  const [exportando, setExportando] = useState(null);
+  const [orgName, setOrgName] = useState('');
 
   const carregar = useCallback(async () => {
     if (!id) return;
@@ -69,6 +72,37 @@ const ClienteFinanceiro = () => {
   }, [id]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  useEffect(() => {
+    axios.get('/api/organization/')
+      .then(({ data }) => setOrgName(data?.organization?.name || ''))
+      .catch(() => {});
+  }, []);
+
+  // Achata as cobranças do cliente nas mesmas linhas de parcela que a tela
+  // geral exporta — um formato só para os dois contextos.
+  const parcelasDoCliente = cobrancas.flatMap((c) =>
+    (c.installments || []).map((p) => ({
+      ...p,
+      cliente: contato?.name || c.payerName || '—',
+      descricao: c.description,
+      serviceType: c.serviceType,
+      totalParcelas: c.installments.length,
+    })));
+
+  const exportar = async (formato) => {
+    setExportando(formato);
+    try {
+      const contexto = { cliente: contato?.name || '' };
+      if (formato === 'xlsx') await exportarExcel(parcelasDoCliente, contexto);
+      else await exportarPDF(parcelasDoCliente, contexto, orgName);
+    } catch (err) {
+      toast.error('Não foi possível gerar o arquivo.');
+      console.error('[financeiro:cliente] export falhou:', err);
+    } finally {
+      setExportando(null);
+    }
+  };
 
   const abrirEdicao = (p) => {
     setEditando(p.id);
@@ -128,7 +162,19 @@ const ClienteFinanceiro = () => {
         sub={cobrancas.length
           ? `${cobrancas.length} ${cobrancas.length === 1 ? 'cobrança' : 'cobranças'}`
           : 'Nenhuma cobrança registrada'}
-        right={<WjButton variant="outline" onClick={() => router.push('/admin/financeiro/')}>← Voltar</WjButton>}
+        right={(
+          <span style={{ display: 'inline-flex', gap: 8 }}>
+            <WjButton variant="outline" disabled={!parcelasDoCliente.length || !!exportando}
+              onClick={() => exportar('xlsx')}>
+              {exportando === 'xlsx' ? 'Gerando…' : 'Exportar Excel'}
+            </WjButton>
+            <WjButton variant="outline" disabled={!parcelasDoCliente.length || !!exportando}
+              onClick={() => exportar('pdf')}>
+              {exportando === 'pdf' ? 'Gerando…' : 'Exportar PDF'}
+            </WjButton>
+            <WjButton variant="outline" onClick={() => router.push('/admin/financeiro/')}>← Voltar</WjButton>
+          </span>
+        )}
       />
 
       {/* Bloco 1 — dados do contato */}
