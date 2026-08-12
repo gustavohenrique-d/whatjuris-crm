@@ -226,7 +226,7 @@ psql $DATABASE_URL -f prisma/sql/002_triggers_and_indexes.sql
 ```
 
 **Recriar o banco do zero** exige, nesta ordem: `prisma migrate deploy`, depois
-os SQL de 002 a 011 em ordem numérica, depois `npx prisma db seed`. Não existe
+os SQL de 002 a 012 em ordem numérica, depois `npx prisma db seed`. Não existe
 `001` — a base é a migration `20260721131411_init`. Todos são idempotentes.
 
 | # | Arquivo | O que faz |
@@ -241,6 +241,7 @@ os SQL de 002 a 011 em ordem numérica, depois `npx prisma db seed`. Não existe
 | 009 | `agenda` | `HEARING` no `ActivityType` + índice da agenda |
 | 010 | `webhook_idempotency_rls` | RLS da tabela de idempotência (decisão 10) |
 | 011 | `sync_stage_from_status` | trigger `deals_sync_stage_from_status` (ver abaixo) |
+| 012 | `rls_prisma_migrations` | RLS + `REVOKE` em `_prisma_migrations` (decisão 10) |
 
 ### Triggers de sincronização de deals
 
