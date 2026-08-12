@@ -579,6 +579,12 @@ model Charge {
   // contato é removido (o SetNull acima deixaria a cobrança anônima).
   payerName   String?      @map("payer_name")
   description String
+  // Texto livre ("Ação trabalhista", "Consultoria"). Nullable: as cobranças
+  // criadas antes da fatia 2 seguem sem tipo.
+  serviceType String?      @map("service_type")
+  // Valor CONTRATADO — imutável depois de criado. Se uma parcela for ajustada,
+  // a soma das parcelas diverge daqui, e a tela mostra os dois números. Nada
+  // no sistema calcula nada a partir deste campo; os totais vêm das parcelas.
   totalAmount Decimal      @map("total_amount") @db.Decimal(14, 2)
   currency    String       @default("BRL") @db.VarChar(3)
   status      ChargeStatus @default(OPEN)
@@ -597,19 +603,23 @@ model Charge {
 }
 
 model Installment {
-  id         String            @id @default(uuid()) @db.Uuid
-  chargeId   String            @map("charge_id") @db.Uuid
-  charge     Charge            @relation(fields: [chargeId], references: [id], onDelete: Cascade)
-  number     Int
-  amount     Decimal           @db.Decimal(14, 2)
+  id             String            @id @default(uuid()) @db.Uuid
+  chargeId       String            @map("charge_id") @db.Uuid
+  charge         Charge            @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  number         Int
+  amount         Decimal           @db.Decimal(14, 2)
   // DATE, não timestamp: vencimento é dia, não instante. Evita a classe de
   // bug de fuso que a agenda teve — não existe "vence às 00:00 de qual TZ".
-  dueDate    DateTime          @map("due_date") @db.Date
-  status     InstallmentStatus @default(PENDING)
-  paidAt     DateTime?         @map("paid_at")
-  paidAmount Decimal?          @map("paid_amount") @db.Decimal(14, 2)
-  createdAt  DateTime          @default(now()) @map("created_at")
-  updatedAt  DateTime          @updatedAt @map("updated_at")
+  dueDate        DateTime          @map("due_date") @db.Date
+  status         InstallmentStatus @default(PENDING)
+  paidAt         DateTime?         @map("paid_at")
+  paidAmount     Decimal?          @map("paid_amount") @db.Decimal(14, 2)
+  // Valor que a parcela tinha antes da PRIMEIRA edição de uma parcela já paga.
+  // Null enquanto ninguém editou uma paga; uma vez gravado, nunca é
+  // sobrescrito — guarda o valor original, não o penúltimo.
+  originalAmount Decimal?          @map("original_amount") @db.Decimal(14, 2)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
 
   @@unique([chargeId, number])
   // Índice da consulta de atrasado: status + vencimento.

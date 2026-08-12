@@ -10,6 +10,7 @@
 // =============================================================================
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import axios from 'axios';
 import { Form, Modal, Spinner } from 'react-bootstrap';
 import { toast } from 'react-toastify';
@@ -42,7 +43,7 @@ const mono = { fontFamily: 'var(--mono)', fontSize: 12.5 };
 
 const FORM_INICIAL = {
   contactId: '', dealId: '', payerName: '',
-  description: '', totalAmount: '', installments: '1', firstDueDate: '',
+  description: '', serviceType: '', totalAmount: '', installments: '1', firstDueDate: '',
 };
 
 function FinCard({ label, value, note, valueColor }) {
@@ -60,6 +61,7 @@ function FinCard({ label, value, note, valueColor }) {
 const plural = (n, um, muitos) => `${n} ${n === 1 ? um : muitos}`;
 
 const Financeiro = () => {
+  const router = useRouter();
   const [parcelas, setParcelas] = useState([]);
   const [resumo, setResumo] = useState(null);
   const [carregando, setCarregando] = useState(true);
@@ -88,6 +90,7 @@ const Financeiro = () => {
         (c.installments || []).map((p) => ({
           ...p,
           chargeId: c.id,
+          contactId: c.contact?.id || null,
           cliente: c.contact?.name || c.payerName || '—',
           descricao: c.description,
           totalParcelas: c.installments.length,
@@ -111,6 +114,16 @@ const Financeiro = () => {
   }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  // Voltando do detalhe do cliente com ?novaCobranca=<contactId>: abre o modal
+  // já vinculado, e limpa a query para o F5 não reabrir.
+  useEffect(() => {
+    const alvo = router.query.novaCobranca;
+    if (!alvo) return;
+    setForm((f) => ({ ...f, contactId: String(alvo) }));
+    setShowModal(true);
+    router.replace('/admin/financeiro/', undefined, { shallow: true });
+  }, [router.query.novaCobranca]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const termo = busca.trim();
@@ -174,6 +187,7 @@ const Financeiro = () => {
         dealId: form.dealId || null,
         payerName: form.contactId ? null : form.payerName.trim(),
         description: form.description.trim(),
+        serviceType: form.serviceType.trim() || null,
         totalAmount: form.totalAmount,
         installments: Number(form.installments) || 1,
         firstDueDate: form.firstDueDate,
@@ -244,8 +258,17 @@ const Financeiro = () => {
                 const st = PAYMENT_STATUS[statusDe(p)];
                 const cel = i === parcelas.length - 1 ? { ...td, borderBottom: 'none' } : td;
                 const pago = p.status === 'PAID';
+                // Cobrança avulsa não tem cliente para detalhar: a linha não
+                // navega. O botão de ação usa stopPropagation para o clique
+                // nele não disparar a navegação da linha.
+                const navegavel = !!p.contactId;
                 return (
-                  <tr key={p.id}>
+                  <tr
+                    key={p.id}
+                    onClick={navegavel ? () => router.push(`/admin/financeiro/cliente/${p.contactId}/`) : undefined}
+                    style={navegavel ? { cursor: 'pointer' } : undefined}
+                    title={navegavel ? 'Ver financeiro do cliente' : 'Cobrança avulsa — sem cliente vinculado'}
+                  >
                     <td style={cel}>{p.cliente}</td>
                     <td style={cel}>
                       {p.descricao}
@@ -258,7 +281,7 @@ const Financeiro = () => {
                     <td style={cel}><StatusBadge variant={st.variant}>{st.label}</StatusBadge></td>
                     <td style={{ ...cel, textAlign: 'right' }}>
                       <button
-                        onClick={() => marcarPaga(p)}
+                        onClick={(e) => { e.stopPropagation(); marcarPaga(p); }}
                         disabled={quitando === p.id}
                         style={{
                           background: 'none', border: 'none', cursor: 'pointer', fontSize: 11.5,
@@ -333,6 +356,15 @@ const Financeiro = () => {
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 placeholder="Ex.: Honorários — ação trabalhista"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Tipo de serviço</Form.Label>
+              <Form.Control
+                value={form.serviceType}
+                onChange={(e) => setForm((f) => ({ ...f, serviceType: e.target.value }))}
+                placeholder="Ex.: Ação trabalhista"
               />
             </Form.Group>
 

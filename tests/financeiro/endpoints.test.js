@@ -136,7 +136,7 @@ describe('POST /api/charges', () => {
 describe('PATCH /api/installments/[id]', () => {
   beforeEach(() => {
     prismaMock.installment.findFirst.mockResolvedValue({
-      id: ID, amount: '333.34', status: 'PENDING', chargeId: 'ch1',
+      id: ID, amount: '333.34', status: 'PENDING', originalAmount: null,
     });
     prismaMock.installment.update.mockImplementation(async ({ data }) => ({ id: ID, ...data }));
   });
@@ -238,6 +238,133 @@ describe('GET /api/charges/summary', () => {
     guardMock.ctx = naoPode;
     const r = res();
     await summaryHandler({ method: 'GET', query: {} }, r);
+    expect(r.statusCode).toBe(403);
+  });
+});
+
+describe('PATCH /api/installments/[id] — editar valor (Fatia 2)', () => {
+  const paga = (over = {}) => prismaMock.installment.findFirst.mockResolvedValue({
+    id: ID, amount: '857.14', status: 'PAID', originalAmount: null, ...over,
+  });
+  const pendente = () => prismaMock.installment.findFirst.mockResolvedValue({
+    id: ID, amount: '857.14', status: 'PENDING', originalAmount: null,
+  });
+  const dados = () => prismaMock.installment.update.mock.calls[0][0].data;
+
+  beforeEach(() => {
+    prismaMock.installment.update.mockImplementation(async ({ data }) => ({ id: ID, ...data }));
+  });
+
+  it('PENDENTE: edita o valor livremente, sem originalAmount', async () => {
+    pendente();
+    const r = res();
+    await installmentHandler({ method: 'PATCH', query: { id: ID }, body: { amount: '800,00' } }, r);
+    expect(r.statusCode).toBe(200);
+    expect(dados().amount).toBe('800.00');
+    expect(dados().originalAmount).toBeUndefined();
+  });
+
+  it('PAGA sem confirmação → rejeitada, sem tocar no banco', async () => {
+    paga();
+    const r = res();
+    await installmentHandler({ method: 'PATCH', query: { id: ID }, body: { amount: '800,00' } }, r);
+    expect(r.statusCode).toBe(400);
+    expect(r.body.error).toContain('já foi paga');
+    expect(prismaMock.installment.update).not.toHaveBeenCalled();
+  });
+
+  it('PAGA com confirmação: grava originalAmount e NÃO toca paidAmount', async () => {
+    paga();
+    const r = res();
+    await installmentHandler({
+      method: 'PATCH', query: { id: ID },
+      body: { amount: '800,00', confirmarEdicaoPaga: true },
+    }, r);
+    expect(r.statusCode).toBe(200);
+    expect(dados().originalAmount).toBe('857.14'); // o valor de ANTES
+    expect(dados().amount).toBe('800.00');
+    // paidAmount intocado: é o que de fato entrou, e o "recebido no mês" o usa.
+    expect(dados()).not.toHaveProperty('paidAmount');
+  });
+
+  it('2ª edição NÃO sobrescreve o originalAmount', async () => {
+    paga({ amount: '800.00', originalAmount: '857.14' });
+    const r = res();
+    await installmentHandler({
+      method: 'PATCH', query: { id: ID },
+      body: { amount: '750,00', confirmarEdicaoPaga: true },
+    }, r);
+    expect(dados()).not.toHaveProperty('originalAmount'); // preservado
+    expect(dados().amount).toBe('750.00');
+  });
+
+  it('confirmarEdicaoPaga não burla a validação de valor', async () => {
+    paga();
+    const r = res();
+    await installmentHandler({
+      method: 'PATCH', query: { id: ID },
+      body: { amount: '0', confirmarEdicaoPaga: true },
+    }, r);
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('body sem status nem valor → 400', async () => {
+    pendente();
+    const r = res();
+    await installmentHandler({ method: 'PATCH', query: { id: ID }, body: {} }, r);
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('sem charge.update → 403 mesmo com confirmação', async () => {
+    guardMock.ctx = naoPode;
+    const r = res();
+    await installmentHandler({
+      method: 'PATCH', query: { id: ID },
+      body: { amount: '800,00', confirmarEdicaoPaga: true },
+    }, r);
+    expect(r.statusCode).toBe(403);
+  });
+});
+
+describe('serviceType (Fatia 2)', () => {
+  it('POST aceita e grava o tipo de serviço', async () => {
+    const r = res();
+    await chargesHandler({ method: 'POST', query: {}, body: {
+      payerName: 'F', description: 'D', totalAmount: '100,00',
+      installments: 1, firstDueDate: '2026-09-10', serviceType: '  Ação trabalhista  ',
+    } }, r);
+    expect(r.statusCode).toBe(201);
+    expect(prismaMock.charge.create.mock.calls[0][0].data.serviceType).toBe('Ação trabalhista');
+  });
+
+  it('POST sem serviceType grava null (retrocompatível)', async () => {
+    const r = res();
+    await chargesHandler({ method: 'POST', query: {}, body: {
+      payerName: 'F', description: 'D', totalAmount: '100,00',
+      installments: 1, firstDueDate: '2026-09-10',
+    } }, r);
+    expect(prismaMock.charge.create.mock.calls[0][0].data.serviceType).toBe(null);
+  });
+
+  it('PATCH /charges/[id] edita o tipo de serviço', async () => {
+    prismaMock.charge.update.mockResolvedValue({ id: ID, serviceType: 'Consultoria' });
+    const r = res();
+    await chargeIdHandler({ method: 'PATCH', query: { id: ID }, body: { serviceType: 'Consultoria' } }, r);
+    expect(r.statusCode).toBe(200);
+    expect(prismaMock.charge.update.mock.calls[0][0].data.serviceType).toBe('Consultoria');
+  });
+
+  it('PATCH NÃO aceita totalAmount — o contratado é imutável', async () => {
+    prismaMock.charge.update.mockResolvedValue({ id: ID });
+    const r = res();
+    await chargeIdHandler({ method: 'PATCH', query: { id: ID }, body: { totalAmount: '99,00' } }, r);
+    expect(prismaMock.charge.update.mock.calls[0][0].data).not.toHaveProperty('totalAmount');
+  });
+
+  it('PATCH sem charge.update → 403', async () => {
+    guardMock.ctx = naoPode;
+    const r = res();
+    await chargeIdHandler({ method: 'PATCH', query: { id: ID }, body: { serviceType: 'X' } }, r);
     expect(r.statusCode).toBe(403);
   });
 });

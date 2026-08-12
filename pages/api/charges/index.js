@@ -17,6 +17,8 @@ const createSchema = z.object({
   dealId: z.string().uuid('Caso inválido.').optional().nullable(),
   payerName: z.string().trim().min(1).max(200).optional().nullable(),
   description: z.string().trim().min(1, 'Descrição obrigatória.').max(300),
+  // Texto livre — o escritório escreve o que quiser ("Ação trabalhista").
+  serviceType: z.string().trim().max(120).optional().nullable(),
   // Aceita número ou string: o formulário manda "6000,00" e o valor precisa
   // chegar sem passar por float. A validação fina é do gerarParcelas.
   totalAmount: z.union([z.number(), z.string()]),
@@ -52,13 +54,13 @@ async function handler(req, res, ctx) {
     const charges = await prisma.charge.findMany({
       where,
       select: {
-        id: true, description: true, totalAmount: true, currency: true,
+        id: true, description: true, serviceType: true, totalAmount: true, currency: true,
         status: true, payerName: true, notes: true, createdAt: true,
         contact: { select: { id: true, name: true } },
         deal: { select: { id: true, title: true } },
         installments: {
           orderBy: { number: 'asc' },
-          select: { id: true, number: true, amount: true, dueDate: true, status: true, paidAt: true, paidAmount: true },
+          select: { id: true, number: true, amount: true, dueDate: true, status: true, paidAt: true, paidAmount: true, originalAmount: true },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -105,6 +107,7 @@ async function handler(req, res, ctx) {
         dealId: d.dealId ?? null,
         payerName: d.payerName?.trim() || null,
         description: d.description,
+        serviceType: d.serviceType?.trim() || null,
         // String, não Number: o Prisma converte para Decimal sem passar por
         // float. `plano.totalCentavos` é a fonte da verdade do valor.
         totalAmount: (plano.totalCentavos / 100).toFixed(2),
@@ -126,7 +129,7 @@ async function handler(req, res, ctx) {
     return tx.charge.findUnique({
       where: { id: criada.id },
       select: {
-        id: true, description: true, totalAmount: true, currency: true, status: true,
+        id: true, description: true, serviceType: true, totalAmount: true, currency: true, status: true,
         payerName: true, createdAt: true,
         contact: { select: { id: true, name: true } },
         deal: { select: { id: true, title: true } },
