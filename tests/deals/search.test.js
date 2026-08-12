@@ -40,7 +40,7 @@ function res() {
 const LINHA = {
   id: 'f63bafc3-c9be-4172-b305-d8a371cd19a4',
   legalArea: 'trabalhista',
-  contact: { name: 'Gustavo', whatsapp: '5513978015937' },
+  contact: { id: 'c1', name: 'Gustavo', whatsapp: '5513978015937' },
   stage: { name: 'Qualificado' },
 };
 
@@ -126,6 +126,7 @@ describe('GET /api/deals/search — busca', () => {
     await handler(req({ q: 'gustavo' }), r);
     expect(r.body.results).toEqual([{
       id: 'f63bafc3-c9be-4172-b305-d8a371cd19a4',
+      contactId: 'c1',
       contactName: 'Gustavo',
       whatsapp: '5513978015937',
       area: 'trabalhista',
@@ -148,7 +149,7 @@ describe('GET /api/deals/search — busca', () => {
     const r = res();
     await handler(req({ q: 'gustavo' }), r);
     expect(r.body.results[0]).toEqual({
-      id: 'd1', contactName: null, whatsapp: null, area: null, stage: null,
+      id: 'd1', contactId: null, contactName: null, whatsapp: null, area: null, stage: null,
     });
   });
 });

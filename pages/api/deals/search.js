@@ -39,7 +39,7 @@ async function handler(req, res, ctx) {
     select: {
       id: true,
       legalArea: true,
-      contact: { select: { name: true, whatsapp: true } },
+      contact: { select: { id: true, name: true, whatsapp: true } },
       stage: { select: { name: true } },
     },
     orderBy: { updatedAt: 'desc' },
@@ -49,6 +49,9 @@ async function handler(req, res, ctx) {
   return res.status(200).json({
     results: rows.map((d) => ({
       id: d.id,
+      // contactId sai junto para o Financeiro vincular o PAGADOR (o `id`
+      // acima é do deal). Campo novo — quem já consumia segue igual.
+      contactId: d.contact?.id ?? null,
       contactName: d.contact?.name ?? null,
       whatsapp: d.contact?.whatsapp ?? null,
       area: d.legalArea ?? null,
