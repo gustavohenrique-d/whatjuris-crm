@@ -16,11 +16,14 @@ import Seo from '../../../shared/layout-components/seo/seo';
 import { WjButton, WjCard, WjScreenHeader } from '../../../shared/components/wj';
 
 // Cores por tipo (whatjuris.html: consulta=accent, audiência=accent2, reunião=amber)
+// Uma cor por tipo — CALL tinha o mesmo âmbar do TASK, o que apagava
+// justamente a distinção que o resto do sistema usa: CALL é consulta com o
+// cliente (notifica), TASK é compromisso interno (não notifica).
 const eventColor = {
   MEETING: '#4F8EF7',  // var(--accent)
+  CALL: '#2DD4A0',     // var(--green)
   HEARING: '#7C5CFC',  // var(--accent2)
   TASK: '#F5A623',     // var(--amber)
-  CALL: '#F5A623',
 };
 // Texto: #0F1117 sobre accent/amber; #fff sobre accent2 (do HTML)
 const eventTextColor = { MEETING: '#0F1117', HEARING: '#fff', TASK: '#0F1117', CALL: '#0F1117' };
@@ -44,10 +47,14 @@ function paraDatetimeLocal(iso) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
+// Espelha LABEL_TIPO e eventColor: os quatro tipos reais, cada um com a cor que
+// o bloco recebe no calendário. Antes listava três rótulos que não existiam
+// como tipo ("Consulta inicial", "Reunião interna") e omitia Ligação e Tarefa.
 const LEGEND = [
-  { label: 'Consulta inicial', color: 'var(--accent)' },
-  { label: 'Audiência', color: 'var(--accent2)' },
-  { label: 'Reunião interna', color: 'var(--amber)' },
+  { label: LABEL_TIPO.MEETING, color: 'var(--accent)' },
+  { label: LABEL_TIPO.CALL, color: 'var(--green)' },
+  { label: LABEL_TIPO.HEARING, color: 'var(--accent2)' },
+  { label: LABEL_TIPO.TASK, color: 'var(--amber)' },
 ];
 
 const Agenda = () => {
@@ -263,7 +270,7 @@ const Agenda = () => {
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
+            initialView="timeGridDay"
             locale={ptBrLocale}
             headerToolbar={{
               left: 'prev,next today',
@@ -279,6 +286,11 @@ const Agenda = () => {
             slotMinTime="07:00:00"
             slotMaxTime="20:00:00"
             height="auto"
+            // Default do FullCalendar é `true`: eventos concorrentes se
+            // esticam por cima dos anteriores (o posterior zera o `right`) e
+            // acabam cobrindo uns aos outros. Com `false` cada um ganha sua
+            // coluna dentro do slot — lado a lado, nada escondido.
+            slotEventOverlap={false}
           />
         </div>
       </WjCard>
@@ -477,6 +489,39 @@ const Agenda = () => {
         .fc .fc-timegrid-slot-label-cushion, .fc .fc-timegrid-axis-cushion { color: var(--text-secondary); font-size: 10.5px; font-family: var(--mono); }
         .fc .fc-scrollgrid { border-color: var(--border); }
         .fc .fc-event { border: none; font-size: 10.5px; font-weight: 600; }
+
+        /* -------------------------------------------------------------------
+           Bloco do evento. O conteúdo continua o default do FullCalendar
+           (horário + título) — aqui só se ajusta respiro e hierarquia: o
+           horário apoia, o nome domina. Escopado em .wj-agenda; sem transform,
+           que criaria bloco de contenção e atrapalharia arraste/mirror.
+           ------------------------------------------------------------------- */
+        .wj-agenda .fc .fc-timegrid-event {
+          padding: 3px 6px;
+          border-radius: 6px;
+          overflow: hidden;
+        }
+        .wj-agenda .fc .fc-event-time {
+          font-family: var(--mono);
+          font-size: 9.5px;
+          font-weight: 500;
+          opacity: .75;
+        }
+        .wj-agenda .fc .fc-event-title {
+          font-size: 11.5px;
+          font-weight: 600;
+          /* Coluna fica estreita quando há eventos lado a lado: nome longo
+             precisa cortar com reticências em vez de estourar o bloco. */
+          display: block;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        /* Respiro entre blocos concorrentes — a classe -inset é a que o próprio
+           FullCalendar aplica quando divide o slot em colunas. */
+        .wj-agenda .fc .fc-timegrid-event-harness-inset .fc-timegrid-event {
+          margin-right: 2px;
+        }
         .fc td, .fc th { border-color: var(--border); }
         .fc .fc-day-today { background: rgba(79,142,247,0.06) !important; }
         .fc .fc-daygrid-day-number { color: var(--text); }
