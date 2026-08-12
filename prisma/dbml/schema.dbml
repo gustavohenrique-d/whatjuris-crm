@@ -44,6 +44,7 @@ Table users {
   deals deals [not null]
   activities activities [not null]
   authTokens auth_tokens [not null]
+  chargesCreated charges [not null]
 }
 
 Table auth_tokens {
@@ -115,6 +116,7 @@ Table contacts {
   updatedAt DateTime [not null]
   deals deals [not null]
   activities activities [not null]
+  charges charges [not null]
 }
 
 Table pipelines {
@@ -182,6 +184,7 @@ Table deals {
   updatedAt DateTime [not null]
   stageHistory deal_stage_history [not null]
   activities activities [not null]
+  charges charges [not null]
 }
 
 Table deal_stage_history {
@@ -335,6 +338,44 @@ Table outbound_message_fragments {
   }
 }
 
+Table charges {
+  id String [pk]
+  contactId String
+  contact contacts
+  dealId String
+  deal deals
+  payerName String
+  description String [not null]
+  totalAmount Decimal [not null]
+  currency String [not null, default: 'BRL']
+  status ChargeStatus [not null, default: 'OPEN']
+  notes String
+  createdById String
+  createdBy users
+  deletedAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  installments installments [not null]
+}
+
+Table installments {
+  id String [pk]
+  chargeId String [not null]
+  charge charges [not null]
+  number Int [not null]
+  amount Decimal [not null]
+  dueDate DateTime [not null]
+  status InstallmentStatus [not null, default: 'PENDING']
+  paidAt DateTime
+  paidAmount Decimal
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+
+  indexes {
+    (chargeId, number) [unique]
+  }
+}
+
 Enum UserStatus {
   INVITED
   ACTIVE
@@ -401,6 +442,16 @@ Enum CustomFieldType {
   BOOLEAN
 }
 
+Enum ChargeStatus {
+  OPEN
+  CANCELED
+}
+
+Enum InstallmentStatus {
+  PENDING
+  PAID
+}
+
 Ref: users.roleId > roles.id
 
 Ref: auth_tokens.userId > users.id [delete: Cascade]
@@ -430,3 +481,11 @@ Ref: activities.contactId > contacts.id [delete: Cascade]
 Ref: activities.userId > users.id [delete: Set Null]
 
 Ref: conversation_control_events.conversationControlId > conversation_controls.id [delete: Cascade]
+
+Ref: charges.contactId > contacts.id [delete: Set Null]
+
+Ref: charges.dealId > deals.id [delete: Set Null]
+
+Ref: charges.createdById > users.id [delete: Set Null]
+
+Ref: installments.chargeId > charges.id [delete: Cascade]

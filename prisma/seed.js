@@ -44,6 +44,12 @@ const PERMISSOES = [
     // Funis (2)
     ['pipeline.read', 'Ver funis'],
     ['pipeline.manage', 'Gerenciar funis e estágios'],
+    // Financeiro — contas a receber (4). O papel 'owner' usa TODAS, então
+    // herda automaticamente; os demais papéis não recebem por ora.
+    ['charge.read', 'Ver cobranças'],
+    ['charge.create', 'Criar cobranças'],
+    ['charge.update', 'Editar cobranças'],
+    ['charge.delete', 'Excluir cobranças'],
     // Usuários (5)
     ['user.invite', 'Convidar usuários'],
     ['user.read', 'Ver usuários'],

@@ -3,16 +3,16 @@
 // RBAC em tabela, soft delete em Contact/Deal, audit_logs append-only.
 
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 generator dbml {
-    provider = "prisma-dbml-generator"
+  provider = "prisma-dbml-generator"
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ---------------------------------------------------------------------------
@@ -20,71 +20,71 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum UserStatus {
-    INVITED
-    ACTIVE
-    SUSPENDED
+  INVITED
+  ACTIVE
+  SUSPENDED
 }
 
 enum AuthTokenType {
-    INVITE
-    PASSWORD_RESET
+  INVITE
+  PASSWORD_RESET
 }
 
 enum ContactType {
-    LEAD
-    CLIENT
+  LEAD
+  CLIENT
 }
 
 enum StageType {
-    OPEN
-    WON
-    LOST
+  OPEN
+  WON
+  LOST
 }
 
 enum DealStatus {
-    OPEN
-    WON
-    LOST
+  OPEN
+  WON
+  LOST
 }
 
 enum ActivityType {
-    NOTE
-    CALL
-    EMAIL
-    WHATSAPP
-    MEETING
-    TASK
-    SYSTEM
-    MESSAGE_IN
-    MESSAGE_OUT
-    FILE_UPLOAD
-    STAGE_CHANGE
-    ASSIGNMENT
-    AI_ACTION
-    // audiência judicial (agenda) — distinta de MEETING
-    HEARING
+  NOTE
+  CALL
+  EMAIL
+  WHATSAPP
+  MEETING
+  TASK
+  SYSTEM
+  MESSAGE_IN
+  MESSAGE_OUT
+  FILE_UPLOAD
+  STAGE_CHANGE
+  ASSIGNMENT
+  AI_ACTION
+  // audiência judicial (agenda) — distinta de MEETING
+  HEARING
 }
 
 enum ActorType {
-    USER
-    AI_AGENT
-    SYSTEM
-    // autor de mensagem recebida no WhatsApp — pessoa real, não usuário do sistema
-    CONTACT
+  USER
+  AI_AGENT
+  SYSTEM
+  // autor de mensagem recebida no WhatsApp — pessoa real, não usuário do sistema
+  CONTACT
 }
 
 enum CustomFieldEntity {
-    CONTACT
-    DEAL
+  CONTACT
+  DEAL
 }
 
 enum CustomFieldType {
-    TEXT
-    NUMBER
-    DATE
-    SELECT
-    MULTISELECT
-    BOOLEAN
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  MULTISELECT
+  BOOLEAN
 }
 
 // ---------------------------------------------------------------------------
@@ -92,25 +92,25 @@ enum CustomFieldType {
 // ---------------------------------------------------------------------------
 
 model Organization {
-    id             String   @id @default(uuid()) @db.Uuid
-    name           String
-    legalName      String?  @map("legal_name")
-    // CPF/CNPJ do escritório
-    document       String?
-    oabNumber      String?  @map("oab_number")
-    logoUrl        String?  @map("logo_url")
-    timezone       String   @default("America/Sao_Paulo")
-    // nome com que os agentes de IA se apresentam no WhatsApp (módulo 9)
-    botDisplayName String?  @map("bot_display_name")
-    // expediente por dia: {"mon":["09:00","18:00"],"sat":null} — lido pelo agente Agendador
-    businessHours  Json     @default("{}") @map("business_hours")
-    legalAreas     String[] @default([]) @map("legal_areas")
-    // rótulos da UI e preferências do escritório (decisão 8: dado genérico, rótulo jurídico)
-    settings       Json     @default("{}")
-    createdAt      DateTime @default(now()) @map("created_at")
-    updatedAt      DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String
+  legalName      String?  @map("legal_name")
+  // CPF/CNPJ do escritório
+  document       String?
+  oabNumber      String?  @map("oab_number")
+  logoUrl        String?  @map("logo_url")
+  timezone       String   @default("America/Sao_Paulo")
+  // nome com que os agentes de IA se apresentam no WhatsApp (módulo 9)
+  botDisplayName String?  @map("bot_display_name")
+  // expediente por dia: {"mon":["09:00","18:00"],"sat":null} — lido pelo agente Agendador
+  businessHours  Json     @default("{}") @map("business_hours")
+  legalAreas     String[] @default([]) @map("legal_areas")
+  // rótulos da UI e preferências do escritório (decisão 8: dado genérico, rótulo jurídico)
+  settings       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-    @@map("organization")
+  @@map("organization")
 }
 
 // ---------------------------------------------------------------------------
@@ -118,102 +118,103 @@ model Organization {
 // ---------------------------------------------------------------------------
 
 model User {
-    id                  String      @id @default(uuid()) @db.Uuid
-    name                String
-    email               String      @unique
-    passwordHash        String      @map("password_hash")
-    status              UserStatus  @default(INVITED)
-    roleId              String      @map("role_id") @db.Uuid
-    role                Role        @relation(fields: [roleId], references: [id])
+  id           String     @id @default(uuid()) @db.Uuid
+  name         String
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  status       UserStatus @default(INVITED)
+  roleId       String     @map("role_id") @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id])
 
-    // contexto jurídico
-    oabNumber           String?     @map("oab_number")
-    oabState            String?     @map("oab_state") @db.VarChar(2)
-    legalAreas          String[]    @default([]) @map("legal_areas")
-    phone               String?
-    // WhatsApp pessoal que recebe a ficha do lead qualificado (módulo 9)
-    notifyWhatsapp      String?     @map("notify_whatsapp")
-    avatarUrl           String?     @map("avatar_url")
-    emailVerifiedAt     DateTime?   @map("email_verified_at")
-    deletedAt           DateTime?   @map("deleted_at")
+  // contexto jurídico
+  oabNumber       String?   @map("oab_number")
+  oabState        String?   @map("oab_state") @db.VarChar(2)
+  legalAreas      String[]  @default([]) @map("legal_areas")
+  phone           String?
+  // WhatsApp pessoal que recebe a ficha do lead qualificado (módulo 9)
+  notifyWhatsapp  String?   @map("notify_whatsapp")
+  avatarUrl       String?   @map("avatar_url")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  deletedAt       DateTime? @map("deleted_at")
 
-    // controle de sessão e bloqueio (módulo 2)
-    tokenVersion        Int         @default(0) @map("token_version")
-    failedLoginAttempts Int         @default(0) @map("failed_login_attempts")
-    lockedUntil         DateTime?   @map("locked_until")
-    lastLoginAt         DateTime?   @map("last_login_at")
+  // controle de sessão e bloqueio (módulo 2)
+  tokenVersion        Int       @default(0) @map("token_version")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  lastLoginAt         DateTime? @map("last_login_at")
 
-    createdAt           DateTime    @default(now()) @map("created_at")
-    updatedAt           DateTime    @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-    contacts            Contact[]   @relation("ContactOwner")
-    deals               Deal[]      @relation("DealOwner")
-    activities          Activity[]
-    authTokens          AuthToken[]
+  contacts       Contact[]   @relation("ContactOwner")
+  deals          Deal[]      @relation("DealOwner")
+  activities     Activity[]
+  authTokens     AuthToken[]
+  chargesCreated Charge[]    @relation("ChargeCreator")
 
-    @@index([roleId])
-    @@map("users")
+  @@index([roleId])
+  @@map("users")
 }
 
 model AuthToken {
-    id        String        @id @default(uuid()) @db.Uuid
-    type      AuthTokenType
-    email     String
-    // SHA-256 do token — o token cru nunca é persistido
-    tokenHash String        @unique @map("token_hash")
-    userId    String?       @map("user_id") @db.Uuid
-    user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-    expiresAt DateTime      @map("expires_at")
-    usedAt    DateTime?     @map("used_at")
-    createdAt DateTime      @default(now()) @map("created_at")
-    updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
+  id        String        @id @default(uuid()) @db.Uuid
+  type      AuthTokenType
+  email     String
+  // SHA-256 do token — o token cru nunca é persistido
+  tokenHash String        @unique @map("token_hash")
+  userId    String?       @map("user_id") @db.Uuid
+  user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime      @map("expires_at")
+  usedAt    DateTime?     @map("used_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
 
-    @@index([type, email])
-    @@map("auth_tokens")
+  @@index([type, email])
+  @@map("auth_tokens")
 }
 
 model Role {
-    id          String           @id @default(uuid()) @db.Uuid
-    key         String           @unique
-    name        String
-    description String?
-    isSystem    Boolean          @default(false) @map("is_system")
-    createdAt   DateTime         @default(now()) @map("created_at")
-    updatedAt   DateTime         @updatedAt @map("updated_at")
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-    users       User[]
-    permissions RolePermission[]
+  users       User[]
+  permissions RolePermission[]
 
-    @@map("roles")
+  @@map("roles")
 }
 
 model Permission {
-    id        String           @id @default(uuid()) @db.Uuid
-    // formato: recurso.acao[.escopo] — ex.: deal.read.all
-    key       String           @unique
-    name      String
-    resource  String
-    action    String
-    scope     String?
-    createdAt DateTime         @default(now()) @map("created_at")
-    updatedAt DateTime         @default(now()) @updatedAt @map("updated_at")
+  id        String   @id @default(uuid()) @db.Uuid
+  // formato: recurso.acao[.escopo] — ex.: deal.read.all
+  key       String   @unique
+  name      String
+  resource  String
+  action    String
+  scope     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-    roles     RolePermission[]
+  roles RolePermission[]
 
-    @@index([resource])
-    @@map("permissions")
+  @@index([resource])
+  @@map("permissions")
 }
 
 model RolePermission {
-    roleId       String     @map("role_id") @db.Uuid
-    permissionId String     @map("permission_id") @db.Uuid
-    role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-    permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-    createdAt    DateTime   @default(now()) @map("created_at")
-    updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
 
-    @@id([roleId, permissionId])
-    @@map("role_permissions")
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }
 
 // ---------------------------------------------------------------------------
@@ -221,139 +222,141 @@ model RolePermission {
 // ---------------------------------------------------------------------------
 
 model Contact {
-    id           String      @id @default(uuid()) @db.Uuid
-    type         ContactType @default(LEAD)
-    name         String
-    email        String?
-    phone        String?
-    // número de WhatsApp (canal principal de entrada dos leads — módulos 8/9)
-    whatsapp     String?
-    // CPF ou CNPJ
-    document     String?
-    source       String?
-    notes        String?
-    // consentimento LGPD para contato — quando o lead autorizou
-    consentAt    DateTime?   @map("consent_at")
-    customData   Json        @default("{}") @map("custom_data")
-    ownerId      String?     @map("owner_id") @db.Uuid
-    owner        User?       @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-    deletedAt    DateTime?   @map("deleted_at")
-    createdAt    DateTime    @default(now()) @map("created_at")
-    updatedAt    DateTime    @updatedAt @map("updated_at")
+  id         String      @id @default(uuid()) @db.Uuid
+  type       ContactType @default(LEAD)
+  name       String
+  email      String?
+  phone      String?
+  // número de WhatsApp (canal principal de entrada dos leads — módulos 8/9)
+  whatsapp   String?
+  // CPF ou CNPJ
+  document   String?
+  source     String?
+  notes      String?
+  // consentimento LGPD para contato — quando o lead autorizou
+  consentAt  DateTime?   @map("consent_at")
+  customData Json        @default("{}") @map("custom_data")
+  ownerId    String?     @map("owner_id") @db.Uuid
+  owner      User?       @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  deletedAt  DateTime?   @map("deleted_at")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
 
-    deals        Deal[]
-    activities   Activity[]
+  deals      Deal[]
+  activities Activity[]
+  charges    Charge[]
 
-    @@index([ownerId])
-    @@index([email])
-    @@map("contacts")
+  @@index([ownerId])
+  @@index([email])
+  @@map("contacts")
 }
 
 model Pipeline {
-    id        String          @id @default(uuid()) @db.Uuid
-    // chave estável referenciada por workflows e agentes (ex.: 'captacao')
-    key       String          @unique
-    name      String          @unique
-    position  Int             @default(0)
-    isDefault Boolean         @default(false) @map("is_default")
-    createdAt DateTime        @default(now()) @map("created_at")
-    updatedAt DateTime        @updatedAt @map("updated_at")
+  id        String   @id @default(uuid()) @db.Uuid
+  // chave estável referenciada por workflows e agentes (ex.: 'captacao')
+  key       String   @unique
+  name      String   @unique
+  position  Int      @default(0)
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-    stages    PipelineStage[]
-    deals     Deal[]
+  stages PipelineStage[]
+  deals  Deal[]
 
-    @@map("pipelines")
+  @@map("pipelines")
 }
 
 model PipelineStage {
-    id         String    @id @default(uuid()) @db.Uuid
-    pipelineId String    @map("pipeline_id") @db.Uuid
-    pipeline   Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-    key        String
-    name       String
-    type       StageType @default(OPEN)
-    position   Int
-    color      String?
-    // probabilidade padrão de fechamento neste estágio (0-100), usada em relatórios
-    probability Int?
-    // horas até o card ser considerado "parado" neste estágio (null = nunca)
-    stalledAfterHours Int? @map("stalled_after_hours")
-    createdAt  DateTime  @default(now()) @map("created_at")
-    updatedAt  DateTime  @updatedAt @map("updated_at")
+  id                String    @id @default(uuid()) @db.Uuid
+  pipelineId        String    @map("pipeline_id") @db.Uuid
+  pipeline          Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  key               String
+  name              String
+  type              StageType @default(OPEN)
+  position          Int
+  color             String?
+  // probabilidade padrão de fechamento neste estágio (0-100), usada em relatórios
+  probability       Int?
+  // horas até o card ser considerado "parado" neste estágio (null = nunca)
+  stalledAfterHours Int?      @map("stalled_after_hours")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-    deals      Deal[]
+  deals Deal[]
 
-    @@unique([pipelineId, key])
-    // suporte à FK composta em deals (estágio precisa pertencer ao funil do deal)
-    @@unique([id, pipelineId])
-    @@index([pipelineId, position])
-    @@map("pipeline_stages")
+  @@unique([pipelineId, key])
+  // suporte à FK composta em deals (estágio precisa pertencer ao funil do deal)
+  @@unique([id, pipelineId])
+  @@index([pipelineId, position])
+  @@map("pipeline_stages")
 }
 
 model Deal {
-    id              String        @id @default(uuid()) @db.Uuid
-    title           String
-    contactId       String        @map("contact_id") @db.Uuid
-    contact         Contact       @relation(fields: [contactId], references: [id])
-    pipelineId      String        @map("pipeline_id") @db.Uuid
-    pipeline        Pipeline      @relation(fields: [pipelineId], references: [id])
-    stageId         String        @map("stage_id") @db.Uuid
-    stage           PipelineStage @relation(fields: [stageId], references: [id])
-    ownerId         String?       @map("owner_id") @db.Uuid
-    owner           User?         @relation("DealOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  id         String        @id @default(uuid()) @db.Uuid
+  title      String
+  contactId  String        @map("contact_id") @db.Uuid
+  contact    Contact       @relation(fields: [contactId], references: [id])
+  pipelineId String        @map("pipeline_id") @db.Uuid
+  pipeline   Pipeline      @relation(fields: [pipelineId], references: [id])
+  stageId    String        @map("stage_id") @db.Uuid
+  stage      PipelineStage @relation(fields: [stageId], references: [id])
+  ownerId    String?       @map("owner_id") @db.Uuid
+  owner      User?         @relation("DealOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
-    // sincronizado por trigger a partir do tipo do estágio — não escrever na aplicação
-    status          DealStatus    @default(OPEN)
-    closedAt        DateTime?     @map("closed_at")
-    lostReason      String?       @map("lost_reason")
+  // sincronizado por trigger a partir do tipo do estágio — não escrever na aplicação
+  status     DealStatus @default(OPEN)
+  closedAt   DateTime?  @map("closed_at")
+  lostReason String?    @map("lost_reason")
 
-    value           Decimal?      @db.Decimal(14, 2)
-    currency        String        @default("BRL") @db.VarChar(3)
-    probability     Int?
-    // 0 = normal, 1 = alta, 2 = urgente (CHECK no banco)
-    priority        Int           @default(0)
-    legalArea       String?       @map("legal_area")
-    // Triagem jurídica (Módulo 4)
-    urgencia        String?       @db.VarChar(10)
-    faseTriage      String        @default("coletando_dados") @map("fase_triagem") @db.VarChar(30)
-    qualifiedAt     DateTime?     @map("qualified_at") @db.Timestamptz
-    instanceName    String?       @map("instance_name") @db.VarChar(100)
-    expectedCloseAt DateTime?     @map("expected_close_at")
-    // momento em que o deal entrou no estágio atual — mantido pelo trigger
-    enteredStageAt  DateTime      @default(now()) @map("entered_stage_at")
-    customData      Json          @default("{}") @map("custom_data")
-    // ordem do card dentro do estágio (kanban)
-    position        Int           @default(0)
+  value           Decimal?  @db.Decimal(14, 2)
+  currency        String    @default("BRL") @db.VarChar(3)
+  probability     Int?
+  // 0 = normal, 1 = alta, 2 = urgente (CHECK no banco)
+  priority        Int       @default(0)
+  legalArea       String?   @map("legal_area")
+  // Triagem jurídica (Módulo 4)
+  urgencia        String?   @db.VarChar(10)
+  faseTriage      String    @default("coletando_dados") @map("fase_triagem") @db.VarChar(30)
+  qualifiedAt     DateTime? @map("qualified_at") @db.Timestamptz
+  instanceName    String?   @map("instance_name") @db.VarChar(100)
+  expectedCloseAt DateTime? @map("expected_close_at")
+  // momento em que o deal entrou no estágio atual — mantido pelo trigger
+  enteredStageAt  DateTime  @default(now()) @map("entered_stage_at")
+  customData      Json      @default("{}") @map("custom_data")
+  // ordem do card dentro do estágio (kanban)
+  position        Int       @default(0)
 
-    deletedAt       DateTime?     @map("deleted_at")
-    createdAt       DateTime      @default(now()) @map("created_at")
-    updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
-    stageHistory    DealStageHistory[]
-    activities      Activity[]
+  stageHistory DealStageHistory[]
+  activities   Activity[]
+  charges      Charge[]
 
-    @@index([contactId])
-    @@index([ownerId])
-    @@index([pipelineId, stageId])
-    @@map("deals")
+  @@index([contactId])
+  @@index([ownerId])
+  @@index([pipelineId, stageId])
+  @@map("deals")
 }
 
 model DealStageHistory {
-    id              String   @id @default(uuid()) @db.Uuid
-    dealId          String   @map("deal_id") @db.Uuid
-    deal            Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-    fromStageId     String?  @map("from_stage_id") @db.Uuid
-    toStageId       String   @map("to_stage_id") @db.Uuid
-    // preenchidos pelo trigger a partir de app.actor_id / app.actor_is_ai
-    movedBy         String?  @map("moved_by") @db.Uuid
-    movedByAi       Boolean  @default(false) @map("moved_by_ai")
-    // tempo que o deal passou no estágio anterior
-    durationSeconds Int?     @map("duration_seconds")
-    createdAt       DateTime @default(now()) @map("created_at")
-    updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+  id              String   @id @default(uuid()) @db.Uuid
+  dealId          String   @map("deal_id") @db.Uuid
+  deal            Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  fromStageId     String?  @map("from_stage_id") @db.Uuid
+  toStageId       String   @map("to_stage_id") @db.Uuid
+  // preenchidos pelo trigger a partir de app.actor_id / app.actor_is_ai
+  movedBy         String?  @map("moved_by") @db.Uuid
+  movedByAi       Boolean  @default(false) @map("moved_by_ai")
+  // tempo que o deal passou no estágio anterior
+  durationSeconds Int?     @map("duration_seconds")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
 
-    @@index([dealId])
-    @@map("deal_stage_history")
+  @@index([dealId])
+  @@map("deal_stage_history")
 }
 
 // ---------------------------------------------------------------------------
@@ -361,49 +364,49 @@ model DealStageHistory {
 // ---------------------------------------------------------------------------
 
 model Activity {
-    id          String       @id @default(uuid()) @db.Uuid
-    dealId      String?      @map("deal_id") @db.Uuid
-    deal        Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
-    contactId   String?      @map("contact_id") @db.Uuid
-    contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
-    type        ActivityType
-    // USER, AI_AGENT ou SYSTEM (decisão 9: IA só no módulo 9, mas o dado já aceita)
-    actorType   ActorType    @default(USER) @map("actor_type")
-    userId      String?      @map("user_id") @db.Uuid
-    user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-    // nome exibido do ator quando não é usuário — ex.: "Agente Classificador"
-    actorLabel  String?      @map("actor_label")
-    title       String?
-    content     String?
-    metadata    Json         @default("{}")
-    // quando o fato aconteceu (mensagem de WhatsApp chega depois do envio)
-    occurredAt  DateTime     @default(now()) @map("occurred_at")
-    dueAt       DateTime?    @map("due_at")
-    completedAt DateTime?    @map("completed_at")
-    createdAt   DateTime     @default(now()) @map("created_at")
-    updatedAt   DateTime     @updatedAt @map("updated_at")
+  id          String       @id @default(uuid()) @db.Uuid
+  dealId      String?      @map("deal_id") @db.Uuid
+  deal        Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contactId   String?      @map("contact_id") @db.Uuid
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type        ActivityType
+  // USER, AI_AGENT ou SYSTEM (decisão 9: IA só no módulo 9, mas o dado já aceita)
+  actorType   ActorType    @default(USER) @map("actor_type")
+  userId      String?      @map("user_id") @db.Uuid
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // nome exibido do ator quando não é usuário — ex.: "Agente Classificador"
+  actorLabel  String?      @map("actor_label")
+  title       String?
+  content     String?
+  metadata    Json         @default("{}")
+  // quando o fato aconteceu (mensagem de WhatsApp chega depois do envio)
+  occurredAt  DateTime     @default(now()) @map("occurred_at")
+  dueAt       DateTime?    @map("due_at")
+  completedAt DateTime?    @map("completed_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
 
-    @@index([dealId])
-    @@index([contactId])
-    @@index([userId])
-    @@map("activities")
+  @@index([dealId])
+  @@index([contactId])
+  @@index([userId])
+  @@map("activities")
 }
 
 model CustomField {
-    id        String            @id @default(uuid()) @db.Uuid
-    entity    CustomFieldEntity
-    key       String
-    label     String
-    type      CustomFieldType
-    options   String[]          @default([])
-    required  Boolean           @default(false)
-    position  Int               @default(0)
-    active    Boolean           @default(true)
-    createdAt DateTime          @default(now()) @map("created_at")
-    updatedAt DateTime          @updatedAt @map("updated_at")
+  id        String            @id @default(uuid()) @db.Uuid
+  entity    CustomFieldEntity
+  key       String
+  label     String
+  type      CustomFieldType
+  options   String[]          @default([])
+  required  Boolean           @default(false)
+  position  Int               @default(0)
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
 
-    @@unique([entity, key])
-    @@map("custom_fields")
+  @@unique([entity, key])
+  @@map("custom_fields")
 }
 
 // ---------------------------------------------------------------------------
@@ -412,26 +415,26 @@ model CustomField {
 // ---------------------------------------------------------------------------
 
 model AuditLog {
-    id         String    @id @default(uuid()) @db.Uuid
-    // sem FK de propósito: auditoria nunca pode ser bloqueada por integridade
-    actorId    String?   @map("actor_id") @db.Uuid
-    actorType  ActorType @default(USER) @map("actor_type")
-    action     String
-    resource   String?
-    resourceId String?   @map("resource_id") @db.Uuid
-    // snapshots antes/depois da alteração — campos sensíveis redigidos pela aplicação
-    before     Json?
-    after      Json?
-    metadata   Json      @default("{}")
-    ip         String?
-    userAgent  String?   @map("user_agent")
-    createdAt  DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(uuid()) @db.Uuid
+  // sem FK de propósito: auditoria nunca pode ser bloqueada por integridade
+  actorId    String?   @map("actor_id") @db.Uuid
+  actorType  ActorType @default(USER) @map("actor_type")
+  action     String
+  resource   String?
+  resourceId String?   @map("resource_id") @db.Uuid
+  // snapshots antes/depois da alteração — campos sensíveis redigidos pela aplicação
+  before     Json?
+  after      Json?
+  metadata   Json      @default("{}")
+  ip         String?
+  userAgent  String?   @map("user_agent")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
-    @@index([actorId])
-    @@index([action])
-    @@index([resource, resourceId])
-    @@index([createdAt])
-    @@map("audit_logs")
+  @@index([actorId])
+  @@index([action])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 // ---------------------------------------------------------------------------
@@ -441,15 +444,15 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model WebhookIdempotency {
-    id          String   @id @default(uuid()) @db.Uuid
-    messageId   String   @unique @map("message_id")
-    chatId      String   @map("chat_id")
-    processedAt DateTime @default(now()) @map("processed_at")
-    createdAt   DateTime @default(now()) @map("created_at")
-    updatedAt   DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid()) @db.Uuid
+  messageId   String   @unique @map("message_id")
+  chatId      String   @map("chat_id")
+  processedAt DateTime @default(now()) @map("processed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-    @@index([processedAt])
-    @@map("webhook_idempotency")
+  @@index([processedAt])
+  @@map("webhook_idempotency")
 }
 
 // ---------------------------------------------------------------------------
@@ -459,41 +462,41 @@ model WebhookIdempotency {
 // ---------------------------------------------------------------------------
 
 model ConversationControl {
-    id             String    @id @default(uuid()) @db.Uuid
-    dealId         String?   @map("deal_id") @db.Uuid
-    instanceName   String    @map("instance_name") @db.VarChar(100)
-    chatId         String    @map("chat_id") @db.VarChar(100)
-    mode           String    @default("ai")
-    blockedUntil   DateTime? @map("blocked_until") @db.Timestamptz
-    takenOverAt    DateTime? @map("taken_over_at") @db.Timestamptz
-    takenOverBy    String?   @map("taken_over_by") @db.Uuid
-    takeoverSource String?   @map("takeover_source") @db.VarChar(30)
-    controlVersion BigInt    @default(0) @map("control_version")
-    createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
-    updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  id             String    @id @default(uuid()) @db.Uuid
+  dealId         String?   @map("deal_id") @db.Uuid
+  instanceName   String    @map("instance_name") @db.VarChar(100)
+  chatId         String    @map("chat_id") @db.VarChar(100)
+  mode           String    @default("ai")
+  blockedUntil   DateTime? @map("blocked_until") @db.Timestamptz
+  takenOverAt    DateTime? @map("taken_over_at") @db.Timestamptz
+  takenOverBy    String?   @map("taken_over_by") @db.Uuid
+  takeoverSource String?   @map("takeover_source") @db.VarChar(30)
+  controlVersion BigInt    @default(0) @map("control_version")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-    events ConversationControlEvent[]
+  events ConversationControlEvent[]
 
-    @@unique([instanceName, chatId])
-    @@map("conversation_controls")
+  @@unique([instanceName, chatId])
+  @@map("conversation_controls")
 }
 
 model ConversationControlEvent {
-    id                    String   @id @default(uuid()) @db.Uuid
-    conversationControlId String   @map("conversation_control_id") @db.Uuid
-    eventType             String   @map("event_type") @db.VarChar(30)
-    actorUserId           String?  @map("actor_user_id") @db.Uuid
-    source                String   @db.VarChar(30)
-    messageId             String?  @map("message_id") @db.VarChar(255)
-    previousMode          String?  @map("previous_mode") @db.VarChar(10)
-    newMode               String   @map("new_mode") @db.VarChar(10)
-    metadata              Json     @default("{}")
-    createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id                    String   @id @default(uuid()) @db.Uuid
+  conversationControlId String   @map("conversation_control_id") @db.Uuid
+  eventType             String   @map("event_type") @db.VarChar(30)
+  actorUserId           String?  @map("actor_user_id") @db.Uuid
+  source                String   @db.VarChar(30)
+  messageId             String?  @map("message_id") @db.VarChar(255)
+  previousMode          String?  @map("previous_mode") @db.VarChar(10)
+  newMode               String   @map("new_mode") @db.VarChar(10)
+  metadata              Json     @default("{}")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-    control ConversationControl @relation(fields: [conversationControlId], references: [id], onDelete: Cascade)
+  control ConversationControl @relation(fields: [conversationControlId], references: [id], onDelete: Cascade)
 
-    @@index([conversationControlId])
-    @@map("conversation_control_events")
+  @@index([conversationControlId])
+  @@map("conversation_control_events")
 }
 
 // ---------------------------------------------------------------------------
@@ -502,19 +505,19 @@ model ConversationControlEvent {
 // ---------------------------------------------------------------------------
 
 model MessageBatch {
-    id                  String    @id @default(uuid()) @db.Uuid
-    instanceName        String    @map("instance_name") @db.VarChar(100)
-    chatId              String    @map("chat_id") @db.VarChar(100)
-    ownerMessageId      String    @map("owner_message_id") @db.VarChar(255)
-    messageIds          Json      @map("message_ids")
-    consolidatedMessage String    @map("consolidated_message")
-    messageCount        Int       @map("message_count")
-    status              String    @default("pending")
-    createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
-    processedAt         DateTime? @map("processed_at") @db.Timestamptz
+  id                  String    @id @default(uuid()) @db.Uuid
+  instanceName        String    @map("instance_name") @db.VarChar(100)
+  chatId              String    @map("chat_id") @db.VarChar(100)
+  ownerMessageId      String    @map("owner_message_id") @db.VarChar(255)
+  messageIds          Json      @map("message_ids")
+  consolidatedMessage String    @map("consolidated_message")
+  messageCount        Int       @map("message_count")
+  status              String    @default("pending")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  processedAt         DateTime? @map("processed_at") @db.Timestamptz
 
-    @@unique([instanceName, chatId, ownerMessageId])
-    @@map("message_batches")
+  @@unique([instanceName, chatId, ownerMessageId])
+  @@map("message_batches")
 }
 
 // ---------------------------------------------------------------------------
@@ -523,24 +526,93 @@ model MessageBatch {
 // ---------------------------------------------------------------------------
 
 model OutboundMessageFragment {
-    id              String    @id @default(uuid()) @db.Uuid
-    dealId          String?   @map("deal_id") @db.Uuid
-    instanceName    String    @map("instance_name") @db.VarChar(100)
-    chatId          String    @map("chat_id") @db.VarChar(100)
-    responseId      String    @map("response_id") @db.VarChar(255)
-    sourceMessageId String    @map("source_message_id") @db.VarChar(255)
-    fragmentId      String    @map("fragment_id") @db.VarChar(300)
-    fragmentIndex   Int       @map("fragment_index")
-    fragmentTotal   Int       @map("fragment_total")
-    contentHash     String    @map("content_hash") @db.VarChar(128)
-    status          String    @default("reserved")
-    metaMessageId   String?   @map("meta_message_id") @db.VarChar(255)
-    attempts        Int       @default(0)
-    lastErrorCode   String?   @map("last_error_code") @db.VarChar(100)
-    reservedAt      DateTime  @default(now()) @map("reserved_at") @db.Timestamptz
-    sentAt          DateTime? @map("sent_at") @db.Timestamptz
-    updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  id              String    @id @default(uuid()) @db.Uuid
+  dealId          String?   @map("deal_id") @db.Uuid
+  instanceName    String    @map("instance_name") @db.VarChar(100)
+  chatId          String    @map("chat_id") @db.VarChar(100)
+  responseId      String    @map("response_id") @db.VarChar(255)
+  sourceMessageId String    @map("source_message_id") @db.VarChar(255)
+  fragmentId      String    @map("fragment_id") @db.VarChar(300)
+  fragmentIndex   Int       @map("fragment_index")
+  fragmentTotal   Int       @map("fragment_total")
+  contentHash     String    @map("content_hash") @db.VarChar(128)
+  status          String    @default("reserved")
+  metaMessageId   String?   @map("meta_message_id") @db.VarChar(255)
+  attempts        Int       @default(0)
+  lastErrorCode   String?   @map("last_error_code") @db.VarChar(100)
+  reservedAt      DateTime  @default(now()) @map("reserved_at") @db.Timestamptz
+  sentAt          DateTime? @map("sent_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-    @@unique([instanceName, chatId, responseId, fragmentIndex])
-    @@map("outbound_message_fragments")
+  @@unique([instanceName, chatId, responseId, fragmentIndex])
+  @@map("outbound_message_fragments")
+}
+
+// ---------------------------------------------------------------------------
+// Financeiro — contas A RECEBER (fatia 1). Uma Charge (honorário) tem N
+// Installment (parcelas), cada uma com vencimento e status próprios.
+//
+// "Atrasado" NÃO é estado gravado: é `status = PENDING AND dueDate < hoje`.
+// Gravar atrasado exigiria um job para virar o status e deixaria parcelas
+// presas em atraso depois de pagas.
+// ---------------------------------------------------------------------------
+
+enum ChargeStatus {
+  OPEN
+  CANCELED
+}
+
+enum InstallmentStatus {
+  PENDING
+  PAID
+}
+
+model Charge {
+  id          String       @id @default(uuid()) @db.Uuid
+  // Ambos opcionais: cobrança avulsa não tem contato nem caso vinculado.
+  // Contact é o PAGADOR; Deal é o caso que originou a cobrança.
+  contactId   String?      @map("contact_id") @db.Uuid
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealId      String?      @map("deal_id") @db.Uuid
+  deal        Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  // Nome do pagador no lançamento avulso — e rótulo histórico quando o
+  // contato é removido (o SetNull acima deixaria a cobrança anônima).
+  payerName   String?      @map("payer_name")
+  description String
+  totalAmount Decimal      @map("total_amount") @db.Decimal(14, 2)
+  currency    String       @default("BRL") @db.VarChar(3)
+  status      ChargeStatus @default(OPEN)
+  notes       String?
+  createdById String?      @map("created_by") @db.Uuid
+  createdBy   User?        @relation("ChargeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  deletedAt   DateTime?    @map("deleted_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  installments Installment[]
+
+  @@index([contactId])
+  @@index([dealId])
+  @@map("charges")
+}
+
+model Installment {
+  id         String            @id @default(uuid()) @db.Uuid
+  chargeId   String            @map("charge_id") @db.Uuid
+  charge     Charge            @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  number     Int
+  amount     Decimal           @db.Decimal(14, 2)
+  // DATE, não timestamp: vencimento é dia, não instante. Evita a classe de
+  // bug de fuso que a agenda teve — não existe "vence às 00:00 de qual TZ".
+  dueDate    DateTime          @map("due_date") @db.Date
+  status     InstallmentStatus @default(PENDING)
+  paidAt     DateTime?         @map("paid_at")
+  paidAmount Decimal?          @map("paid_amount") @db.Decimal(14, 2)
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  @@unique([chargeId, number])
+  // Índice da consulta de atrasado: status + vencimento.
+  @@index([status, dueDate])
+  @@map("installments")
 }

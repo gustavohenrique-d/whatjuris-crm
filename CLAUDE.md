@@ -225,8 +225,15 @@ schema em produção foi aplicado à mão.
 psql $DATABASE_URL -f prisma/sql/002_triggers_and_indexes.sql
 ```
 
+⚠️ **`npx prisma db seed` NÃO é seguro em produção.** A lista de estágios do
+seed divergiu da real (tem `proposta_enviada`/`negociacao`/`perdido`, não tem
+`aguardando_docs`/`qualificado`/`descartado` — ver `006_corrigir_estagios`), e
+ele sincroniza `role_permissions` apagando o que não está na lista. Use apenas
+em banco novo. Permissão avulsa em produção: `INSERT ... ON CONFLICT DO NOTHING`
+escopado.
+
 **Recriar o banco do zero** exige, nesta ordem: `prisma migrate deploy`, depois
-os SQL de 002 a 012 em ordem numérica, depois `npx prisma db seed`. Não existe
+os SQL de 002 a 013 em ordem numérica, depois `npx prisma db seed`. Não existe
 `001` — a base é a migration `20260721131411_init`. Todos são idempotentes.
 
 | # | Arquivo | O que faz |
@@ -242,6 +249,7 @@ os SQL de 002 a 012 em ordem numérica, depois `npx prisma db seed`. Não existe
 | 010 | `webhook_idempotency_rls` | RLS da tabela de idempotência (decisão 10) |
 | 011 | `sync_stage_from_status` | trigger `deals_sync_stage_from_status` (ver abaixo) |
 | 012 | `rls_prisma_migrations` | RLS + `REVOKE` em `_prisma_migrations` (decisão 10) |
+| 013 | `rls_financeiro` | RLS + `REVOKE` em `charges` e `installments` (decisão 10) |
 
 ### Triggers de sincronização de deals
 
