@@ -5,7 +5,8 @@
 
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { withAuth, BadRequest, Forbidden } from '@/lib/auth/guard';
+import { withAuth, BadRequest, Conflict, Forbidden } from '@/lib/auth/guard';
+import { sanitizeChatId } from '@/lib/conversations/control';
 import { contactWhere } from '@/lib/query/scope';
 
 const createSchema = z.object({
@@ -59,8 +60,29 @@ async function handler(req, res, ctx) {
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) throw BadRequest(parsed.error.issues[0].message);
 
+    // O número precisa ser gravado em DÍGITOS, no mesmo formato que
+    // findOrCreateContact/triagem usam para localizar o contato. Gravar
+    // "(13) 97801-5937" faria a busca do webhook por "5513978015937" falhar, e
+    // o contato nasceria desvinculado das próprias conversas.
+    const whatsapp = parsed.data.whatsapp ? sanitizeChatId(parsed.data.whatsapp) : null;
+
+    // Sem @unique no banco (dados legados podem ter duplicata), a aplicação é a
+    // única guarda. Seis pontos do sistema buscam o contato por whatsapp com
+    // findFirst — com dois registros no mesmo número, as mensagens cairiam ora
+    // num, ora noutro, espalhando o histórico em silêncio.
+    if (whatsapp) {
+      const jaExiste = await prisma.contact.findFirst({
+        where: { whatsapp, deletedAt: null },
+        select: { id: true, name: true },
+      });
+      if (jaExiste) {
+        throw Conflict(`Já existe um cliente com esse WhatsApp: ${jaExiste.name}.`);
+      }
+    }
+
     const data = {
       ...parsed.data,
+      whatsapp,
       ownerId: parsed.data.ownerId ?? ctx.userId,
     };
 
